@@ -1,6 +1,7 @@
 #include <CGAL/Qt/Basic_viewer_qt.h>
 #include <boost/property_map/property_map.hpp>
 #include <cstddef>
+#include <cstring>
 #include <iostream>
 #include <ostream>
 #include <fstream>
@@ -32,15 +33,35 @@
 
 
 int main(int argc,char *argv[]){
-	if(argc != 2){
-		std::cout<<"Usage: "<<argv[0]<<" json_file_path that has: instance_uid, num_points, points_x, points_y, region_boundary, num_constrains, additional_constrains"<<std::endl;
+	if(argc != 5){
+		std::cout<<"Usage: "<<argv[0]<<" -i /path/to/input.json -o /path/to/output.json"<<std::endl;
 		return 1;
 	}
 	//1.Read input and make sure it is correct
-	std::string file_name=argv[1];
+	std::string input_file,output_file;
+
+	for(int i=1;i<argc;i+=2){
+		if(strcmp(argv[i], "-i")==0){
+			input_file=argv[i+1];
+		}else if (strcmp(argv[i], "-o")==0){
+			output_file=argv[i+1];
+		}else {
+			std::cerr<<"Error: Uknown flag"<<argv[i]<<std::endl;
+			return 0;
+		}
+
+	}
+
+	if(input_file.empty() || output_file.empty()){
+		std::cerr<< "Error: Missing input or output file path."<<std::endl;
+		return 0;
+	}
+
+
+
 	boost::property_tree::ptree pt;
 	try{
-		boost::property_tree::read_json(file_name,pt);
+		boost::property_tree::read_json(input_file,pt);
 	} catch (const boost::property_tree::json_parser_error &e){
 		std::cerr<<"Error: reading JSON file: "<<e.what()<<std::endl;
 		exit(-1);
@@ -89,7 +110,7 @@ int main(int argc,char *argv[]){
 	for (size_t i = 0; i < points_x.size(); ++i) {
 		initial_points.emplace_back(points_x[i], points_y[i]);
 	}
-	generate_output_json(cdel_tri, inst_iud, initial_points,region_polygon);
+	generate_output_json(cdel_tri, inst_iud, initial_points,region_polygon,output_file);
 	return 0;
 }
 

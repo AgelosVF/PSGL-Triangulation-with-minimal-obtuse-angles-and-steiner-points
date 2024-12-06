@@ -50,7 +50,6 @@ int choose_smallest(int a, int b, int c, int d, int e) {
 }
 
 void local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int L, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain){
-	std::cout<<"Cool\n";
 	bool steiner_added=true;
 	//for some reason i need to re-mark_domain else it is blank
 	CGAL::mark_domain_in_triangulation(ccdt, in_domain);
