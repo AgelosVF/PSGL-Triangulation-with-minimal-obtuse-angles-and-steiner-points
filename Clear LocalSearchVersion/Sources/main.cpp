@@ -1,0 +1,97 @@
+#include <CGAL/Qt/Basic_viewer_qt.h>
+#include <boost/property_map/property_map.hpp>
+#include <cstddef>
+#include <iostream>
+#include <ostream>
+#include <fstream>
+#include <vector>
+#include <map>
+#include <unordered_map>
+//custom
+#include "../Header Files/boost_utils.hpp"
+#include "../Header Files/triangulation_utils.hpp"
+//boost libraries
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include "../Header Files/CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
+//cgal libraries
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
+#include <CGAL/Constrained_Delaunay_triangulation_2.h>
+#include <CGAL/Delaunay_mesh_face_base_2.h>
+#include <CGAL/Triangulation_face_base_2.h>
+#include <CGAL/draw_triangulation_2.h>
+#include <CGAL/Triangulation_vertex_base_2.h>
+#include <CGAL/mark_domain_in_triangulation.h>
+#include <CGAL/Constrained_triangulation_face_base_2.h>
+#include <CGAL/Triangulation_data_structure_2.h>
+
+#include <CGAL/polygon_function_objects.h>
+#include <CGAL/Polygon_2.h>
+#include <CGAL/draw_polygon_2.h>
+
+
+
+int main(int argc,char *argv[]){
+	if(argc != 2){
+		std::cout<<"Usage: "<<argv[0]<<" json_file_path that has: instance_uid, num_points, points_x, points_y, region_boundary, num_constrains, additional_constrains"<<std::endl;
+		return 1;
+	}
+	//1.Read input and make sure it is correct
+	std::string file_name=argv[1];
+	boost::property_tree::ptree pt;
+	try{
+		boost::property_tree::read_json(file_name,pt);
+	} catch (const boost::property_tree::json_parser_error &e){
+		std::cerr<<"Error: reading JSON file: "<<e.what()<<std::endl;
+		exit(-1);
+	}
+	//extract the info from the file using the utils functions
+	std::vector<int> points_x=extract_x_coordinates(pt);
+	std::vector<int> points_y=extract_y_coordinates(pt);
+	std::vector<int> region_boundary=extract_region_boundary(pt); 
+	std::vector<std::pair<int,int>> additional_constrains= extract_additional_constrains(pt);
+	boost::optional<std::string> inst_iud = pt.get_optional<std::string>("instance_uid");
+	if(!inst_iud){
+		std::cerr<<"Error: missing inst_iud from JSON file"<<std::endl;
+		exit(-1);
+	}
+	//make sure that we have the same number of x and y coordinates
+	if(points_x.size() != points_y.size()){
+		std::cerr<<"Error: mismatch in the number of x and y coordinates."<<std::endl;
+		exit(-1);
+	}
+
+	//2.Create the constrained Delaunay triangulation object
+	Custom_CDT cdel_tri;
+	//use custom function to put the points and constrains in the trianglulation
+	fill_initial_cdt(cdel_tri, points_x, points_y, region_boundary, additional_constrains);
+	
+	// Mark the domain inside the region boundary
+	std::unordered_map<Face_handle, bool> in_domain_map;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);//marks faces connected with non constrained edges as inside of the domain based on the nesting level.
+	//create the polygon of the region boundry
+	Polygon_2 region_polygon;
+	for (int i : region_boundary) {
+		region_polygon.push_back(Point(points_x[i], points_y[i]));
+	}
+
+	unsigned int num_obtuse=count_obtuse_faces(cdel_tri,in_domain);
+
+	num_obtuse=count_obtuse_faces(cdel_tri,in_domain);
+	CGAL::draw(cdel_tri,in_domain);
+	local_search(cdel_tri, region_polygon, 1000, in_domain);
+
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
+	CGAL::draw(cdel_tri,in_domain);
+	//-1. Generate the output JSON file
+	std::vector<Point> initial_points;
+	for (size_t i = 0; i < points_x.size(); ++i) {
+		initial_points.emplace_back(points_x[i], points_y[i]);
+	}
+	generate_output_json(cdel_tri, inst_iud, initial_points,region_polygon);
+	return 0;
+}
+
+
+
