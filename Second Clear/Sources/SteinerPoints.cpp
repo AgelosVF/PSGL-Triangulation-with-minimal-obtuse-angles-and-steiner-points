@@ -397,7 +397,7 @@ int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_p
 		std::cerr<<"Tried to merge with non obtuse face\n";
 		exit(-1);
 	}
-	if( !(get(in_domain,face)) ){
+	if( !(get(in_domain,face_2)) ){
 		std::cerr<<"Tried to merge with outside of the domain\n";
 		exit(-1);
 	}

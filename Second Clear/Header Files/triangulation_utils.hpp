@@ -85,6 +85,9 @@ int test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, const Polyg
 
 int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge);
 int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int& indx,int testORadd);
+
+
+bool is_polygon_convex(const Point& v1, const Point& v2, const Point& v3, const Point& v4) ;
 //------------------------------------------------------------------------------------------------------------//
 //In output.cpp
 //creates the output json file
