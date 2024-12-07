@@ -1,0 +1,5 @@
+/home/Aggelos/Projects/Project2/Second Clear/make/CMakeFiles/Triangulation.dir
+/home/Aggelos/Projects/Project2/Second Clear/make/CMakeFiles/CGAL_Qt5_moc_and_resources.dir
+/home/Aggelos/Projects/Project2/Second Clear/make/CMakeFiles/edit_cache.dir
+/home/Aggelos/Projects/Project2/Second Clear/make/CMakeFiles/rebuild_cache.dir
+/home/Aggelos/Projects/Project2/Second Clear/make/CMakeFiles/CGAL_Qt5_moc_and_resources_autogen.dir

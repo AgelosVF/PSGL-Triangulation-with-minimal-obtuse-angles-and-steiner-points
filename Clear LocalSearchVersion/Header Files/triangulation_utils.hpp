@@ -88,5 +88,8 @@ int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_p
 void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std::string>& inst_iud, const std::vector<Point>& initial_points,Polygon_2 region_polygon,std::string write_file);
 //-----------------------------------------------------------------------------------------------------------//
 //In local search
-void local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain);
+int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain);
+//In simmulate annealing
+//
+void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L);
 #endif // TRIANGULATION_UTILS_HPP
