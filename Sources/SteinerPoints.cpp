@@ -255,9 +255,7 @@ Point steiner_circumcenter(Custom_CDT& cdel_tri, Face_handle face){
 int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge){
 	
 	//check if the vertices of the face are constrained
-	//std::cout<<"ENTERED TEST MERGE\n";
 	if(is_face_constrained(ccdt,ob_face) ){
-	//	std::cout<<"Face constrained\n";
 		return 21474836;
 	}
 	//create a copy and locate the face in it

@@ -98,16 +98,146 @@ int annealing_test_add_steiner_centroid(Custom_CDT& ccdt,Face_handle face, const
 	return test_obutse_count;
 }
 
+int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge){
+	
+	//check if the vertices of the face are constrained
+	if(is_face_constrained(ccdt,ob_face) ){
+	//	std::cout<<"Face constrained\n";
+		return 21474836;
+	}
+	//create a copy and locate the face in it
+	Custom_CDT ccdt_copy(ccdt);
+
+	Face_handle face_copy;
+	Face_handle neighbor;
+	std::unordered_map<Face_handle, bool> in_domain_map_copy;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
+	CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
+	int ob_count=annealing_test_add_steiner_centroid(ccdt, ob_face, region_boundary, 0);
+
+	best_merge=-1;
+	for(int i=0;i<3;i++){
+		face_copy=find_face(ccdt_copy,ob_face);
+		neighbor=face_copy->neighbor(i);
+
+		//skip  constrained ,non obtuse, outside of region_boundary neighbors
+		if( ccdt_copy.is_infinite(neighbor) ){
+			continue;
+		}
+		
+		if( !(is_obtuse_triangle(neighbor)) ){
+			continue;
+		}
+		if( !(get(in_domain_copy,neighbor)) ){
+			continue;
+		}
+		if(is_face_constrained(ccdt_copy,neighbor)){
+			continue;
+		}
+
+		Point v1 = face_copy->vertex((i + 1) % 3)->point();
+		Point v2 = face_copy->vertex((i + 2) % 3)->point();
+		Point v3 = neighbor->vertex(neighbor->index(face_copy))->point();
+		Point v4 = face_copy->vertex(i)->point();
+
+		if( !( is_polygon_convex(v1, v2, v3,v4) ) ){
+			continue;
+		}
+		Point centroid=CGAL::centroid(v1,v2,v3,v4);
+
+		//remove the points
+		//v1
+		ccdt_copy.remove_no_flip(face_copy->vertex((i+1) % 3));
+		//v2
+		ccdt_copy.remove_no_flip((ccdt_copy.insert_no_flip(v2)));
+		//v3
+		ccdt_copy.remove_no_flip((ccdt_copy.insert_no_flip(v3)));
+		//v4
+		ccdt_copy.remove_no_flip((ccdt_copy.insert_no_flip(v4)));
+
+		//add the centroid insert_no_flip
+		auto vh_cent=ccdt_copy.insert_no_flip(centroid);
+		
+		//add back v1 v2 v3 v4 insert_no_flip
+		//make (v1,v3) (v3,v2) (v2,v4) (v4,v1) constrains
+		auto vh1=ccdt_copy.insert_no_flip(v1);
+		auto vh3=ccdt_copy.insert_no_flip(v3);
+		ccdt_copy.insert_constraint_no_flip(vh1,vh3);
+		auto vh2=ccdt_copy.insert_no_flip(v2);
+		auto vh4=ccdt_copy.insert_no_flip(v4);
+		ccdt_copy.insert_constraint_no_flip(vh2,vh4);
+		ccdt_copy.insert_constraint_no_flip(vh4,vh1);
+		ccdt_copy.insert_constraint_no_flip(vh3, vh2);
+		
+		
+		//remove the constrains remove_constrain_no_flip
+		int edge_indx;
+		Face_handle face13;
+		if(!(find_face(ccdt_copy,vh1,vh3,edge_indx, face13))){
+			std::cout<<"Couldnt locate vh1 vh3 face\n";
+			exit(-1);
+		}
+		ccdt_copy.remove_constraint_no_flip(face13,edge_indx);
+		Face_handle face24;
+		if(!find_face(ccdt_copy,vh2,vh4,edge_indx, face24)){
+			std::cout<<"Couldnt locate vh2 vh4 face\n";
+			exit(-1);
+		}
+		ccdt_copy.remove_constraint_no_flip(face24,edge_indx);
+		Face_handle face41;
+		if(!find_face(ccdt_copy,vh4,vh1,edge_indx, face41)){
+			std::cout<<"Couldnt locate vh1 vh4 face\n";
+			exit(-1);
+		}
+		ccdt_copy.remove_constraint_no_flip(face41,edge_indx);
+		Face_handle face32;
+		if(!find_face(ccdt_copy,vh3,vh2,edge_indx, face32)){
+			std::cout<<"Couldnt locate vh2 vh3 face\n";
+			exit(-1);
+		}
+		ccdt_copy.remove_constraint_no_flip(face32,edge_indx);
+
+		//count obtuses and reset by removing the steiner, forcing the edge that was removed
+		CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
+		int temp_count=count_obtuse_faces(ccdt_copy, in_domain_copy);
+		if(temp_count<ob_count){
+			ob_count=temp_count;
+			best_merge=i;
+		}
+		ccdt_copy.remove_no_flip(vh_cent);
+
+
+		vh1=ccdt_copy.insert_no_flip(v1);
+		vh2=ccdt_copy.insert_no_flip(v2);
+		ccdt_copy.insert_constraint_no_flip(vh1, vh2);
+		Face_handle face12;
+		if(!find_face(ccdt_copy,vh1,vh2,edge_indx, face12)){
+			std::cout<<"Couldnt locate vh2 vh2 face\n";
+			exit(-1);
+		}
+		ccdt_copy.remove_constraint_no_flip(face12,edge_indx);
+		//remove constraint vh1 vh2
+		
+
+		CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
+	}
+	return ob_count;
+}
 int annealing_test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_polygon, int& indx,int testORadd){
 	int test_obtuse_count;
 	if(testORadd!=1){
-		test_obtuse_count=simulate_merge_steiner(ccdt,face,region_polygon,indx);
+		test_obtuse_count=annealing_simulate_merge_steiner(ccdt,face,region_polygon,indx);
 		return test_obtuse_count;
 	}
 	
 	auto face_2=face->neighbor(indx);
 
 	//skip  constrained ,non obtuse, outside of region_boundary neighbors
+	if(indx==-1){
+		test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_polygon, 1);
+		return test_obtuse_count;
+
+	}
 	if( ccdt.is_infinite(face_2) ){
 		test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_polygon, 1);
 		return test_obtuse_count;
@@ -313,6 +443,7 @@ int annealing_test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, c
 		exit(-1);
 	}
 	ccdt.remove_constraint_no_flip(face_p0c,edge_indx);
+
 
 	if(testORadd==1){
 		return count_obtuse_faces(ccdt,region_boundary);
