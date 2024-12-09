@@ -107,7 +107,7 @@ Face_handle select_random_obtuse_face(const Custom_CDT& cdt, Polygon_2 boundary)
 
 
 
-Face_handle improveTriangulation(Custom_CDT& cdt,Polygon_2 boundary,double alpha,double beta,int steiner_count,double xi,double ps, const std::vector<double>& pheromones,double& ant_energy,int& selected_method){
+Face_handle impruveTriangulation(Custom_CDT& cdt,Polygon_2 boundary,double alpha,double beta,int steiner_count,double xi,double ps, const std::vector<double>& pheromones,double& ant_energy,int& selected_method,double best_E){
 
 	//choose random face
 	Face_handle face=select_random_obtuse_face(cdt, boundary);
@@ -144,24 +144,36 @@ Face_handle improveTriangulation(Custom_CDT& cdt,Polygon_2 boundary,double alpha
 
 	selected_method = dist(gen); // Randomly choose a method index based on probabilities
 	
+	int obtuse_faces=99999;
 	switch (selected_method){
-	case 0:
-		std::cout<<"Selected projection\n";
-		break;
-	case 1:
-		std::cout<<"Selected longest edge\n";
-		break;
-	case 2:
-		std::cout<<"Selected circumcenter\n";
-		break;
-	case 3:
-		std::cout<<"Selected merge\n";
-		break;
-	default:
-		std::cerr<<"Error: chose invalid method\n";
-		exit(-1);
+		case 0:
+			std::cout<<"Selected projection\n";
+			obtuse_faces=0;
+			break;
+		case 1:
+			std::cout<<"Selected longest edge\n";
+			obtuse_faces=1;
+			break;
+		case 2:
+			std::cout<<"Selected circumcenter\n";
+			obtuse_faces=2;
+			break;
+		case 3:
+			std::cout<<"Selected merge\n";
+			obtuse_faces=3;
+			break;
+		default:
+			std::cerr<<"Error: chose invalid method\n";
+			exit(-1);
 	}
-	int current_energy=alpha*count_obtuse_faces(cdt,boundary) +beta*(steiner_count+1);
+
+	if(obtuse_faces==0){
+		ant_energy=0;
+	}
+	else{
+		ant_energy=alpha*obtuse_faces +beta*(steiner_count+1);
+	}
+
 	return face;
 
 
@@ -170,6 +182,26 @@ double update_pheromon(double t, double lambda,double alpha, int obtuse_count, d
 	double denom=1+alpha*obtuse_count + beta* steiner_count;
 	return ( (1-lambda) * t + (1/denom) );
 
+}
+
+bool face_still_exists(Custom_CDT cdt,Face_handle face){
+	
+	Point p0 = face->vertex(0)->point();
+	Point p1 = face->vertex(1)->point();
+	Point p2 = face->vertex(2)->point();
+	Point centroid= CGAL::centroid(p0,p1,p2);
+	Face_handle n_face = cdt.locate(centroid);
+	if( n_face == nullptr){
+		return false;
+	}
+	Point np0=n_face->vertex(0)->point();
+	Point np1=n_face->vertex(1)->point();
+	Point np2=n_face->vertex(2)->point();
+
+	std::set<Point> og_points={p0,p1,p2};
+	std::set<Point> new_points={np0,np1,np2};
+
+	return og_points==new_points;
 }
 
 void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points){
@@ -189,24 +221,51 @@ void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, do
 		for(int ant=0;ant<kappa;ant++){
 		
 			//each ant should have its own cdt
-			Face_handle edited_face = improveTriangulation( cdt, boundary, alpha, beta, current_steiner, xi, ps, pheromones, ant_energy[ant], ant_method[ant]);
+			Face_handle edited_face = impruveTriangulation( cdt, boundary, alpha, beta, current_steiner, xi, ps, pheromones, ant_energy[ant], ant_method[ant],best_Energy);
 			//then we count the obtuse faces of the "improved" cdt
 			ant_faces[ant] = edited_face;
 		}
+
+		for(int ant=0;ant<kappa;ant++){
+			if(ant_energy[ant]==0){
+				//apply the method i to the face i and break since we reduced obtuse to 0
+			}
+
+		}
+		//create index energy pair vector
+		std::vector<std::pair<double, int>> energy_index_pairs;
+		for(int i=0;i<kappa;i++){
+			energy_index_pairs.emplace_back(ant_energy[i],i);
+		}
+
+		//sort them from smallest to largest
+		std::sort(energy_index_pairs.begin(), energy_index_pairs.end());
 		//choose the ants that reduced the energy of the best cdt
 		//first apply the one that reduced the energy the most
 		//then by always choosing the one that reduced the most 
 		//to filter conflicts check if its the same face or 1 is the edited neighbor of the other
-		//
-		//filter between the ones that have conflicts
-		//add the each of the remaining solutions to the best cdt
-		//update the pheromons of each choise
 		for(int ant=0;ant<kappa;ant++){
-			//choose the 
+			double current_ant_energy=energy_index_pairs[ant].first;
+			int current_ant_index=energy_index_pairs[ant].second;
+			if(current_ant_energy<best_Energy){
+				Face_handle c_ant_face=ant_faces[current_ant_index];
+				int c_meth=ant_method[current_ant_index];
+				if(face_still_exists(best_cdt, c_ant_face)){
+					//apply the steiner
+					//update the pheramon[method]
+				}
 
+			}
+			else{
+				//the ant increased the energy so we stop looking
+				break;
+			}
+
+			
 		}
 
 
 
 	}
 }
+
