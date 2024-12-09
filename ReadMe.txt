@@ -66,7 +66,7 @@ How Simulated Annealing works:
 	we apply the steiner point. Then if the current enery is less than the best enery we save the current
 	cdt as the best.
 
-How Ant collony works:
+How Ant colony works:
 	  Unfortunatly i wasnt able to finish it so it isnt compiled with the rest of the project. In it i have
 	the functions that calculate the r and heuristic for each choice. 
 	  Also there is the improveTriangulationthat is called for each ant. improveTriangulation() chooses one
