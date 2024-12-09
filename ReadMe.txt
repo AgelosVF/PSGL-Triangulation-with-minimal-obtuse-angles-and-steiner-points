@@ -18,8 +18,8 @@ Files and Directories:
     │			   	   to recreate the triangulation produced by the previous project.
     ├── SimulatedAnnealing.cpp	<--Source code of the sumulated annealing.
     ├── SteinerPoints.cpp	<--Source code of the functions used to find and add steiner points.
-    └── triangulation_utils.cpp <--Source code of other helping functions.
-
+    ├── triangulation_utils.cpp <--Source code of other helping functions.
+    └── AntCollony		<--Source code of the ant collony method.
 How to compile and run:
 	Inside the make directory there is the CMakeLists.txt. If you run cmake. inside and after
 	make the files will be compiled and in the build directory the executable Triangulation
@@ -66,14 +66,32 @@ How Simulated Annealing works:
 	we apply the steiner point. Then if the current enery is less than the best enery we save the current
 	cdt as the best.
 
+How Ant collony works:
+	  Unfortunatly i wasnt able to finish it so it isnt compiled with the rest of the project. In it i have
+	the functions that calculate the r and heuristic for each choice. 
+	  Also there is the improveTriangulationthat is called for each ant. improveTriangulation() chooses one
+	of the obtuse faces and a type of steiner at random. After it simulates adding the steiner to the 
+	triangulation and checks saves the energy that steiner would produce. After the face that was chosen
+	is returned and the energy and method that was used are stored in vectors given as arguments.
+	  The main function is the ant_colony. It start by creating some vectors to store the pheromones,
+	ant_energy, ant_method and calculating the starting energy. Then it starts looping for L. in each
+	loop a vector ant_faces is created to store the faces that each ant chose to edit. After there is
+	another loop for each ant. In that loop improvedTriangulation() is called to simulate what edits each
+	ant would do. The method, face and energy each ant chose are stored in the vectors. After that we
+	choose the ant that improved the energy the best (if it exists) its steiner is added to the cdt and
+	the pheromon of the method is updated. Then we keep choosing the next best (if it exists) and check
+	if the face it wants to edit still exists if it does the same thing happens. This way we can filter
+	conflicts by applying the best first.
 Testing results:
 	-Local search in most cases performed a bit worst than my previous project since it didnt allow edge
 	 flips and rarely removed all the obtuse triangles.
-	-Simmulated annealing added a more steiner points but also reduced the obtuse angles more. I found that
+	-Simmulated annealing added  more steiner points but also reduced the obtuse angles more. I found that
 	 as it looped after a point it would stop making changes to the best cdt. With an L around 1000 it would
-	 most times reduce the obtuse angles to 0. The higher the a the more steiners it would allow if they
-	 reduced the obtuse count and the higher the b the less. To see results with 0 obtuse faces a needed to
-	 be more than 3 times the value of b. But there is a random element to the algorithm so it can work well
-	 with less.
+	 most times reduce the obtuse angles to 0. The bests results (less loops needed & less steiners used) 
+	 were given when used after a local search. Also the bigger the difrence between a and b (a>b) the most
+	 likely it was to reduce the obtuse faces to 0. The most used method was the projection steiner and 
+	 least was midpoint of longest edge which i think is expected since it is a more simplist version of
+	 the projection. Also the lower the b the more time it would take since it allowed more steiner points
+	 and the faces would increase making it more complex.
 
 

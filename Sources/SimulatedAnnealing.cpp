@@ -100,22 +100,19 @@ int annealing_test_add_steiner_centroid(Custom_CDT& ccdt,Face_handle face, const
 
 int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge){
 	
+	best_merge=-1;
 	//check if the vertices of the face are constrained
 	if(is_face_constrained(ccdt,ob_face) ){
-	//	std::cout<<"Face constrained\n";
-		return 21474836;
+		int test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, ob_face, region_boundary, 0);
+		return test_obtuse_count;
 	}
 	//create a copy and locate the face in it
 	Custom_CDT ccdt_copy(ccdt);
 
 	Face_handle face_copy;
 	Face_handle neighbor;
-	std::unordered_map<Face_handle, bool> in_domain_map_copy;
-	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
-	CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
 	int ob_count=annealing_test_add_steiner_centroid(ccdt, ob_face, region_boundary, 0);
 
-	best_merge=-1;
 	for(int i=0;i<3;i++){
 		face_copy=find_face(ccdt_copy,ob_face);
 		neighbor=face_copy->neighbor(i);
@@ -128,7 +125,7 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 		if( !(is_obtuse_triangle(neighbor)) ){
 			continue;
 		}
-		if( !(get(in_domain_copy,neighbor)) ){
+		if( !(is_in_region_polygon(face_copy, region_boundary)) ){
 			continue;
 		}
 		if(is_face_constrained(ccdt_copy,neighbor)){
@@ -198,8 +195,7 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 		ccdt_copy.remove_constraint_no_flip(face32,edge_indx);
 
 		//count obtuses and reset by removing the steiner, forcing the edge that was removed
-		CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
-		int temp_count=count_obtuse_faces(ccdt_copy, in_domain_copy);
+		int temp_count=count_obtuse_faces(ccdt_copy, region_boundary);
 		if(temp_count<ob_count){
 			ob_count=temp_count;
 			best_merge=i;
@@ -216,10 +212,7 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 			exit(-1);
 		}
 		ccdt_copy.remove_constraint_no_flip(face12,edge_indx);
-		//remove constraint vh1 vh2
 		
-
-		CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
 	}
 	return ob_count;
 }
@@ -505,7 +498,6 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 	int current_obtuse=count_obtuse_faces(ccdt,in_domain);
 	int best_steiner=current_steiner;
 
-	// not needed will be current +1 int test_steiner=current_steiner;
 	int test_obtuse=current_obtuse;
 
 	double cooling_rate=1.0/L;
@@ -521,7 +513,7 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 	int choise= func_selector(gen);
 	int merge_index;
 
-	int centroid_added=0,circ_added=0,projection_added=0,midpoint_added=0,merged=0;
+	//int centroid_added=0,circ_added=0,projection_added=0,midpoint_added=0,merged=0;
 	Custom_CDT current_cdt(ccdt);
 	int if_loop=0;
 	for(int i=0;i<L;i++){
@@ -561,30 +553,26 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 				delta_E=test_E-Best_E;
 				double random=getRandomDouble();
 				if( (delta_E<0) || (random<=exp(-1*delta_E/Temperature)) ){
-
-					
-
-					//std::cout<<"Adding:"<<choise<<std::endl;
 					switch (choise) {
 						case 0:
 							current_obtuse=annealing_test_add_steiner_projection(current_cdt, face,region_polygon, 1);
-							projection_added++;
+							//projection_added++;
 							break;
 						case 1:
 							current_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 1);
-							midpoint_added++;
+							//midpoint_added++;
 							break;
 						case 2:
 							current_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 1);
-							centroid_added++;
+							//centroid_added++;
 							break;
 						case 3:
 							current_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 1);
-							circ_added++;
+							//circ_added++;
 							break;
 						case 4:
 							test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,1);
-							merged++;
+							//merged++;
 							break;
 						
 						default:
@@ -601,8 +589,6 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 						ccdt=current_cdt;
 						Best_E=current_E;
 						best_steiner=current_steiner;
-						//std::cout<<"Eddited best!!!!\n";
-//						CGAL::draw(ccdt);
 					}
 					break;
 				}
@@ -611,12 +597,12 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 		Temperature=Temperature*(1-cooling_rate);
 	}
 
-	CGAL::draw(current_cdt);
+	//CGAL::draw(current_cdt);
 	current_cdt.clear();
 	//CGAL::draw(ccdt);
-	std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
-		<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
-		<<"\n\tMerged faces:"<<merged<<std::endl;
+	//std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
+		//<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
+		//<<"\n\tMerged faces:"<<merged<<std::endl;
 
 
 }

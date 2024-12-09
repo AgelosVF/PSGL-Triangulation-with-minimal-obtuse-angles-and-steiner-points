@@ -37,7 +37,6 @@ int main(int argc,char *argv[]){
 		std::cout<<"Usage: "<<argv[0]<<" -i /path/to/input.json -o /path/to/output.json"<<std::endl;
 		return 1;
 	}
-	//1.Read input and make sure it is correct
 	std::string input_file,output_file;
 
 	for(int i=1;i<argc;i+=2){
@@ -85,7 +84,6 @@ int main(int argc,char *argv[]){
 		exit(-1);
 	}
 
-	//2.Create the constrained Delaunay triangulation object
 	Custom_CDT cdel_tri;
 	//use custom function to put the points and constrains in the trianglulation
 	fill_initial_cdt(cdel_tri, points_x, points_y, region_boundary, additional_constrains);
@@ -102,10 +100,9 @@ int main(int argc,char *argv[]){
 
 	//---------------------TESTING GROUND------------------------------//
 	int steiner_count=0;
-	if(extract_delaunay(pt)){
+	if(!(extract_delaunay(pt))){
 		std::cout<<"Starting by using applying the previous Project to the triangulation\n";
 		steiner_count+=previous_triangulation(cdel_tri, region_polygon);
-		std::cout<<"Previous count="<<steiner_count<<std::endl;
 	}
 	unsigned int num_obtuse=count_obtuse_faces(cdel_tri,in_domain);
 
@@ -127,7 +124,7 @@ int main(int argc,char *argv[]){
 		double alpha,beta,xi,psi,lambda;
 		int kappa,L;
 		extract_ant_parameters(parameters,alpha, beta, xi, psi, lambda, kappa, L);
-		std::cout<<"Ant colony still under constraction\n";
+		std::cout<<"Ant colony still under constraction the code is in AntCollony.cpp but isnt linked to program.\n";
 	
 	}
 	
