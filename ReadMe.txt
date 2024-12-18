@@ -67,8 +67,6 @@ How Simulated Annealing works:
 	cdt as the best.
 
 How Ant colony works:
-	  Unfortunatly i wasnt able to finish it so it isnt compiled with the rest of the project. In it i have
-	the functions that calculate the r and heuristic for each choice. 
 	  Also there is the improveTriangulationthat is called for each ant. improveTriangulation() chooses one
 	of the obtuse faces and a type of steiner at random. After it simulates adding the steiner to the 
 	triangulation and checks saves the energy that steiner would produce. After the face that was chosen
