@@ -111,6 +111,7 @@ int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::a
 bool is_in_region_polygon(Face_handle f, const Polygon_2& region_polygon);
 void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L);
 
+void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points);
 
 //In Previous_Project
 int previous_triangulation(Custom_CDT& cdel_tri,const Polygon_2& region_polygon);

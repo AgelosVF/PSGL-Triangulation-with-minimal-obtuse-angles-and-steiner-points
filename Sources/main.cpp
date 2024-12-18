@@ -56,8 +56,6 @@ int main(int argc,char *argv[]){
 		return 0;
 	}
 
-
-
 	boost::property_tree::ptree pt;
 	try{
 		boost::property_tree::read_json(input_file,pt);
@@ -91,24 +89,26 @@ int main(int argc,char *argv[]){
 	// Mark the domain inside the region boundary
 	std::unordered_map<Face_handle, bool> in_domain_map;
 	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
-	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);//marks faces connected with non constrained edges as inside of the domain based on the nesting level.
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
 	//create the polygon of the region boundry
 	Polygon_2 region_polygon;
 	for (int i : region_boundary) {
 		region_polygon.push_back(Point(points_x[i], points_y[i]));
 	}
 
-	//---------------------TESTING GROUND------------------------------//
 	int steiner_count=0;
+	/*
 	if(!(extract_delaunay(pt))){
 		std::cout<<"Starting by using applying the previous Project to the triangulation\n";
 		steiner_count+=previous_triangulation(cdel_tri, region_polygon);
 	}
-	unsigned int num_obtuse=count_obtuse_faces(cdel_tri,in_domain);
+	*/
+	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 
-	num_obtuse=count_obtuse_faces(cdel_tri,in_domain);
-	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);//marks faces connected with non constrained edges as inside of the domain based on the nesting level.
+	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
 	CGAL::draw(cdel_tri,in_domain);
+	/*
 	if(method=="local"){
 		int L;
 		extract_local_parameters(parameters, L);
@@ -127,17 +127,22 @@ int main(int argc,char *argv[]){
 		std::cout<<"Ant colony still under constraction the code is in AntCollony.cpp but isnt linked to program.\n";
 	
 	}
-	
-	//--------------------------------------------------------------------//
+	*/
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
 	CGAL::draw(cdel_tri,in_domain);
-	int obtuse_count=count_obtuse_faces(cdel_tri, in_domain);
-	//-1. Generate the output JSON file
+	
+	obtuse_count=count_obtuse_faces(cdel_tri, in_domain);
+	ant_colony(cdel_tri,region_polygon,4.0 ,2.0, 1.0, 3.0, 0.5, 4, 30, obtuse_count);
+	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
+	
+	/*
+	// Generate the output JSON file
 	std::vector<Point> initial_points;
 	for (size_t i = 0; i < points_x.size(); ++i) {
 		initial_points.emplace_back(points_x[i], points_y[i]);
 	}
 	generate_output_json(cdel_tri, inst_iud, initial_points, region_polygon, output_file,  method, parameters, obtuse_count);
+	*/
 	return 0;
 }
 

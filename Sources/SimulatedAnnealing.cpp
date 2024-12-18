@@ -513,7 +513,7 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 	int choise= func_selector(gen);
 	int merge_index;
 
-	//int centroid_added=0,circ_added=0,projection_added=0,midpoint_added=0,merged=0;
+	int centroid_added=0,circ_added=0,projection_added=0,midpoint_added=0,merged=0;
 	Custom_CDT current_cdt(ccdt);
 	int if_loop=0;
 	for(int i=0;i<L;i++){
@@ -556,23 +556,23 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 					switch (choise) {
 						case 0:
 							current_obtuse=annealing_test_add_steiner_projection(current_cdt, face,region_polygon, 1);
-							//projection_added++;
+							projection_added++;
 							break;
 						case 1:
 							current_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 1);
-							//midpoint_added++;
+							midpoint_added++;
 							break;
 						case 2:
 							current_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 1);
-							//centroid_added++;
+							centroid_added++;
 							break;
 						case 3:
 							current_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 1);
-							//circ_added++;
+							circ_added++;
 							break;
 						case 4:
 							test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,1);
-							//merged++;
+							merged++;
 							break;
 						
 						default:
@@ -600,9 +600,8 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 	//CGAL::draw(current_cdt);
 	current_cdt.clear();
 	//CGAL::draw(ccdt);
-	//std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
-		//<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
-		//<<"\n\tMerged faces:"<<merged<<std::endl;
-
+	std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
+		<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
+		<<"\n\tMerged faces:"<<merged<<std::endl;
 
 }

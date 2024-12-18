@@ -21,6 +21,7 @@ add_executable(Triangulation
   ${SOURCES_DIR}/LocalSearch.cpp
   ${SOURCES_DIR}/SimulatedAnnealing.cpp
   ${SOURCES_DIR}/Previous_Project.cpp
+  ${SOURCES_DIR}/AntCollony.cpp
 )
 
 # Include header files
