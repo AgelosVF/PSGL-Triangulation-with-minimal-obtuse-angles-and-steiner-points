@@ -178,7 +178,13 @@ Face_handle impruveTriangulation(Custom_CDT& cdt,Polygon_2 boundary,double alpha
 
 
 }
-double update_pheromon(double t, double lambda,double alpha, int obtuse_count, double beta, int steiner_count){
+//if the obtuse count didnt get reduced
+double update_pheromon_0(double t, double lambda){
+	return ( (1-lambda) * t );
+
+}
+//if the obtuse count got reduced
+double update_pheromon_1(double t, double lambda,double alpha, int obtuse_count, double beta, int steiner_count){
 	double denom=1+alpha*obtuse_count + beta* steiner_count;
 	return ( (1-lambda) * t + (1/denom) );
 
@@ -209,6 +215,7 @@ void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, do
 
 	std ::vector<double> pheromones(5,1.0);
 	int current_steiner=steiner_points;
+	int temp_steiner=steiner_points;
 	double best_Energy=alpha*count_obtuse_faces(cdt,boundary) + beta*steiner_points;
 	std::vector<double> ant_energy(kappa,best_Energy);
 	std::vector<int> ant_method(kappa,-1);
@@ -253,11 +260,20 @@ void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, do
 				if(face_still_exists(best_cdt, c_ant_face)){
 					//apply the steiner
 					//update the pheramon[method]
+					temp_steiner=count_obtuse_faces(cdt,boundary);
+					if(temp_steiner<current_steiner){
+						//update pheromones 0
+						current_steiner=temp_steiner;
+					}
+					else{
+						//update pheromones 1
+						current_steiner=temp_steiner;
+					}
 				}
 
 			}
 			else{
-				//the ant increased the energy so we stop looking
+				//the ant increased the energy so we stop looking since the rest wont be used
 				break;
 			}
 
