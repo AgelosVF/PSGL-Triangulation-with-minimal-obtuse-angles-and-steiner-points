@@ -5,10 +5,12 @@
 
 #include<CGAL/Kernel/global_functions_2.h>
 #include <CGAL/enum.h>
+#include <CGAL/draw_triangulation_2.h>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/polygon_function_objects.h>
+#include <iostream>
 #include <string>
 #include <boost/algorithm/string/replace.hpp>
 
@@ -35,31 +37,46 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
     int index = 0;
 
     for (size_t i = 0; i < initial_points.size(); ++i) {
-    point_index_map[initial_points[i]] = static_cast<int>(i);
+	point_index_map[initial_points[i]] = index;
+	index++;
     }
 
     // Collect Steiner points
     std::vector<Point> steiner_points;
     for (auto vit = cdel_tri.finite_vertices_begin(); vit != cdel_tri.finite_vertices_end(); ++vit) {
-    Point p = vit->point();
-    if (point_index_map.find(p) == point_index_map.end()) {
-    point_index_map[p] = index++;
-    steiner_points.push_back(p);
+	Point p = vit->point();
+	if (point_index_map.find(p) == point_index_map.end()) {
+	    point_index_map[p] = index++;
+	    steiner_points.push_back(p);
+	    }
+	else{
+	    std::cout<<"Skipped: ("<<p.x()<<", "<<p.y()<<"\n";
+	}
     }
+
+    for(auto it = point_index_map.cbegin(); it != point_index_map.cend(); ++it)
+    {
+	std::cout << it->first.x()<<" , "<<it->first.y()<< " " << it->second <<"\n";
     }
 
     // Collect edges
     std::vector<std::pair<int, int>> edges;
     for (auto eit = cdel_tri.finite_edges_begin(); eit != cdel_tri.finite_edges_end(); ++eit) {
-    auto segment = cdel_tri.segment(*eit);
-    int source_index = point_index_map[segment.source()];
-    int target_index = point_index_map[segment.target()];
-    auto midpoint = CGAL::midpoint(segment.source(), segment.target());
-    if ((region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDED_SIDE) || 
-    (region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDARY)) {
-    edges.emplace_back(source_index, target_index);
+	auto segment = cdel_tri.segment(*eit);
+	int source_index = point_index_map[segment.source()];
+	std::cout<<"Source: "<<segment.source()<<" "<<source_index<<"\t";
+	int target_index = point_index_map[segment.target()];
+
+	std::cout<<"Target: "<<segment.target()<<" "<<target_index<<"\n";
+	auto midpoint = CGAL::midpoint(segment.source(), segment.target());
+	if ((region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDED_SIDE) || (region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDARY)) {
+	    edges.emplace_back(source_index, target_index);
+	}
+	else{
+	    std::cout<<"skipped\n";
+	}
     }
-    }
+    CGAL::draw(cdel_tri);
 
     // Create the JSON structure
     boost::property_tree::ptree root;
@@ -76,23 +93,23 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
     boost::property_tree::ptree steiner_points_y;
 
     for (const auto& steiner_point : steiner_points) {
-    boost::property_tree::ptree x_node;
-    x_node.put("", rational_to_string(steiner_point.x()));
-    steiner_points_x.push_back(std::make_pair("", x_node));
+	boost::property_tree::ptree x_node;
+	x_node.put("", rational_to_string(steiner_point.x()));
+	steiner_points_x.push_back(std::make_pair("", x_node));
 
-    boost::property_tree::ptree y_node;
-    y_node.put("", rational_to_string(steiner_point.y()));
-    steiner_points_y.push_back(std::make_pair("", y_node));
+	boost::property_tree::ptree y_node;
+	y_node.put("", rational_to_string(steiner_point.y()));
+	steiner_points_y.push_back(std::make_pair("", y_node));
     }
     root.add_child("steiner_points_x", steiner_points_x);
     root.add_child("steiner_points_y", steiner_points_y);
 
     boost::property_tree::ptree edges_node;
     for (const auto& edge : edges) {
-    boost::property_tree::ptree edge_node;
-    edge_node.push_back(std::make_pair("", boost::property_tree::ptree(std::to_string(edge.first))));
-    edge_node.push_back(std::make_pair("", boost::property_tree::ptree(std::to_string(edge.second))));
-    edges_node.push_back(std::make_pair("", edge_node));
+	boost::property_tree::ptree edge_node;
+	edge_node.push_back(std::make_pair("", boost::property_tree::ptree(std::to_string(edge.first))));
+	edge_node.push_back(std::make_pair("", boost::property_tree::ptree(std::to_string(edge.second))));
+	edges_node.push_back(std::make_pair("", edge_node));
     }
     root.add_child("edges", edges_node);
 
@@ -109,3 +126,6 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
     output_file << json_string;
     output_file.close();
 }
+
+
+

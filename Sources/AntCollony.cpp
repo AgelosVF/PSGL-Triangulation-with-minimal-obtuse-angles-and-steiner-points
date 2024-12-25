@@ -4,7 +4,7 @@
 #include <CGAL/Kernel/global_functions_3.h>
 #include <CGAL/squared_distance_2.h>
 #include <algorithm>
-#include <cmath> // for std::sqrt
+#include <cmath> 
 #include <iostream>
 #include <random>
 
