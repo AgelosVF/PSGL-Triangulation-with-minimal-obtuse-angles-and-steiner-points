@@ -3,6 +3,8 @@
 #include "../Header Files/triangulation_utils.hpp"
 #include "../Header Files//CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
 
+
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include<CGAL/Kernel/global_functions_2.h>
 #include <CGAL/enum.h>
 #include <CGAL/draw_triangulation_2.h>

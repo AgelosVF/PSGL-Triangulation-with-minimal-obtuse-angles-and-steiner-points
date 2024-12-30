@@ -420,7 +420,6 @@ int annealing_test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, c
 	ccdt.remove_no_flip( (ccdt.insert_no_flip(cp1)) );
 	ccdt.remove_no_flip( (ccdt.insert_no_flip(cp2)) );
 
-	std::cout<<"\tRemoved triangle\n";
 	ccdt.insert_points_and_constraint_no_flip(obp0, circ);
 	ccdt.insert_no_flip(cp1);
 	ccdt.insert_no_flip(cp2);

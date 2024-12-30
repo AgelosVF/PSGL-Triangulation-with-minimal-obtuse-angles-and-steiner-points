@@ -531,7 +531,7 @@ int test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, const Polyg
 	Point n3=neighbor->vertex(2)->point();
 
 	Point nonShared=neighbor->vertex(neighbor->index(face))->point();
-	//check if the circ is inside he neighbor
+	//check if the circ is inside the neighbor
 	if(!point_inside_triangle(n1, n2, n3, circ)){
 		//std::cout<<"\tCircumcenter outside neighbor\n";
 		return 214748364;

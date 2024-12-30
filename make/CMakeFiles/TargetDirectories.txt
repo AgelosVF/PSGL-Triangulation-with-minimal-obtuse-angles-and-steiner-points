@@ -1,0 +1,6 @@
+/home/Aggelos/Projects/Project2/make/CMakeFiles/Triangulation.dir
+/home/Aggelos/Projects/Project2/make/CMakeFiles/CGAL_Qt5_moc_and_resources.dir
+/home/Aggelos/Projects/Project2/make/CMakeFiles/edit_cache.dir
+/home/Aggelos/Projects/Project2/make/CMakeFiles/rebuild_cache.dir
+/home/Aggelos/Projects/Project2/make/CMakeFiles/CGAL_Qt5_moc_and_resources_autogen_timestamp_deps.dir
+/home/Aggelos/Projects/Project2/make/CMakeFiles/CGAL_Qt5_moc_and_resources_autogen.dir
