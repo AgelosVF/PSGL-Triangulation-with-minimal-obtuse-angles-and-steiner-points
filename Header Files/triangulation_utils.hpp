@@ -115,4 +115,7 @@ void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, do
 
 //In Previous_Project
 int previous_triangulation(Custom_CDT& cdel_tri,const Polygon_2& region_polygon);
+
+bool face_still_exists(Custom_CDT cdt,Face_handle face);
+void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points);
 #endif // TRIANGULATION_UTILS_HPP

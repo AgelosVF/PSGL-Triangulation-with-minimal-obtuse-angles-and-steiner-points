@@ -105,9 +105,16 @@ int main(int argc,char *argv[]){
 	*/
 	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 
-	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
+	std::cout<<obtuse_count<<std::endl;
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
 	CGAL::draw(cdel_tri,in_domain);
+	ant_colony(cdel_tri,region_polygon,4.0 ,0.01, 1.0, 3.0, 0.5, 3, 1000, 0);
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
+	CGAL::draw(cdel_tri,in_domain);
+	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
+	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
+
+	/*
 	if(method=="local"){
 		int L;
 		extract_local_parameters(parameters, L);

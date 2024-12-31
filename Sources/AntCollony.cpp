@@ -80,32 +80,31 @@ double h_merge(const Custom_CDT& ccdt,const Face_handle& Face,Polygon_2& region_
 Face_handle select_random_obtuse_face(const Custom_CDT& cdt, Polygon_2 boundary){
 
 	std::vector<Face_handle> obtuse_faces;
+	int count=0;
 
 	for(auto face= cdt.finite_faces_begin(); face!= cdt.finite_faces_end(); face++){
 		if(is_obtuse_triangle(face) && is_in_region_polygon(face,boundary) ){
 			obtuse_faces.push_back(face);
+			count++;
 		}
 	}
 	if(obtuse_faces.empty()){
 		std::cerr<<"Error tried to select obtuse face when they are none\n";
 		exit(-1);
 	}
-
-	std::srand(static_cast<unsigned>(std::time(nullptr)));
-	int random_index= (std::rand() %obtuse_faces.size());
-
-	Face_handle o_face=obtuse_faces[random_index];
-
+	std::random_device rd; // Seed for random number generator
+	std::mt19937 gen(rd()); // Mersenne Twister engine
+	std::uniform_int_distribution<> dis(0, obtuse_faces.size() - 1);
+	int random_index = dis(gen);
+	Face_handle o_face = obtuse_faces[random_index];
 	if( o_face == nullptr){
 		std::cerr<<"Error: couldnt locate original ccdt face in the copy cccdt"<<std::endl;
 	}
+	std::cout<<"O faces: "<<count<<"\n";
 	return o_face;
-
-
-
 }
 
-Face_handle ant_longest_edge(Custom_CDT& ccdt, Face_handle face) {
+Face_handle ant_longest_edge(Custom_CDT& ccdt, Face_handle face,Polygon_2 region) {
     // Get the vertices of the face
 	// Get the three vertices of the triangle
 	Point p0 = face->vertex(0)->point();
@@ -131,16 +130,21 @@ Face_handle ant_longest_edge(Custom_CDT& ccdt, Face_handle face) {
 		midpoint=CGAL::midpoint(p0,p1);
 		neighbor=face->neighbor(2);
 	}
-	else
+	else{
 		std::cerr<<"Could determine longest edge between: "<<side1<<" "<<side2<<" "<<side0<<std::endl;
-
+	}
 	// Insert the Steiner point without flipping
+	if(ccdt.is_infinite(neighbor)||!(is_in_region_polygon(neighbor, region))){
+		Face_handle ignore=face;
+		ccdt.insert_no_flip(midpoint,face);
+		return ignore;
+	}
 	ccdt.insert_no_flip(midpoint,face);
 	return neighbor;
 }
 
 
-Face_handle ant_projection(Custom_CDT& cdt, Face_handle F){
+Face_handle ant_projection(Custom_CDT& cdt, Face_handle F, Polygon_2 region){
 	
 	//get the vertices of the face
 	Point v0=F->vertex(0)->point();
@@ -148,7 +152,6 @@ Face_handle ant_projection(Custom_CDT& cdt, Face_handle F){
 	Point v2=F->vertex(2)->point();
 
 	//calculate the length of the edges
-	//
 	Kernel::FT length0 = CGAL::squared_distance(v1, v2);
 	Kernel::FT length1 = CGAL::squared_distance(v2, v0);
 	Kernel::FT length2 = CGAL::squared_distance(v0, v1);
@@ -175,10 +178,21 @@ Face_handle ant_projection(Custom_CDT& cdt, Face_handle F){
 		neighbor=F->neighbor(2);
 	
 	}
+	Point p0 = neighbor->vertex(0)->point();
+	Point p1 = neighbor->vertex(1)->point();
+	Point p2 = neighbor->vertex(2)->point();
+	//std::cout<<"PROJECTION PTR ("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")\n";
+	//std::cout<<"Is infinite: "<<cdt.is_infinite(neighbor)<<std::endl;
 
 	//calculate the projection of the obtuse vertex on the longest edge
 	Kernel::Line_2 longest_edge(le_start,le_end);
 	Point projection= longest_edge.projection(obtuse_vertex);
+	if(!(is_in_region_polygon(neighbor, region))||cdt.is_infinite(neighbor)){
+		Face_handle ignore=F;
+		cdt.insert_no_flip(projection,F);
+	//	std::cout<<"Will ignore\n";
+		return ignore;
+	}
 	cdt.insert_no_flip(projection,F);
 	return neighbor;
 }
@@ -195,12 +209,12 @@ Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle face, const Polygon_2&
 	if(boundary.bounded_side(circumcenter)==CGAL::ON_UNBOUNDED_SIDE){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	if(is_face_constrained(cdt, face)){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	
 	int i=find_longest_edge_index(face);
@@ -218,7 +232,7 @@ Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle face, const Polygon_2&
 	if(!point_inside_triangle(n0,n1,n2,circumcenter)){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	cdt.remove_no_flip( (cdt.insert_no_flip(obP0)) );
 	cdt.remove_no_flip( (cdt.insert_no_flip(sP1)) );
@@ -240,42 +254,37 @@ Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle face, const Polygon_2&
 	return neighbor;
 
 };
-
-
 Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon){
 	int test_obtuse_count;
 	int index=-1;
 	simulate_merge_steiner(cdt, face, region_polygon, index);
-
-	
 	auto neighbor=face->neighbor(index);
-
 	//skip  constrained ,non obtuse, outside of region_boundary neighbors
 	if(index==-1){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	if( cdt.is_infinite(neighbor) ){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	
 	if( !(is_obtuse_triangle(neighbor)) ){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	if( !(is_in_region_polygon(neighbor, region_polygon)) ){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	if(is_face_constrained(cdt,neighbor)){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 
 	Point v1 = face->vertex((index + 1) % 3)->point();
@@ -286,7 +295,7 @@ Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon
 	if( !( is_polygon_convex(v1, v2, v3,v4) ) ){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
-		return NULL;
+		return face;
 	}
 	Point centroid=CGAL::centroid(v1,v2,v3,v4);
 
@@ -345,15 +354,24 @@ Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon
 return neighbor;
 }
 
+//if the obtuse count didnt get reduced
+double update_pheromon_0(double t, double lambda){
+	return ( (1-lambda) * t );
+
+}
+//if the obtuse count got reduced
+double update_pheromon_1(double t, double lambda,double alpha, int obtuse_count, double beta, int steiner_count){
+	double denom=1+alpha*obtuse_count + beta* steiner_count;
+	return ( (1-lambda) * t + (1/denom) );
+
+}
+
 
 
 std::pair<Face_handle, Face_handle> impruveTriangulation(Custom_CDT& cdt,Polygon_2 boundary,double alpha,double beta,int steiner_count,double xi,double ps, const std::vector<double>& pheromones,double& ant_energy,int& selected_method,double best_E){
 
 	//choose random face
 	Face_handle face=select_random_obtuse_face(cdt, boundary);
-	
-	//choose random method
-	
 	//find heuristics
 	double r=calculate_r(face);
 	double h_mrg=h_merge(cdt,face,boundary);
@@ -363,20 +381,16 @@ std::pair<Face_handle, Face_handle> impruveTriangulation(Custom_CDT& cdt,Polygon
 
 	std::vector<double> heuristics= {h_proj,h_le,h_circ,h_mrg};
 	std::vector<double> probabilities(pheromones.size());
-
-
 	//chose random with probability p(k)= (t^xi * h^psi)/ Σ_{i} t^x_{i}h^ps_{i} 
 	double denominator = 0.0;
 	for (size_t i = 0; i < pheromones.size(); i++) {
 		probabilities[i] = std::pow(pheromones[i], xi) * std::pow(heuristics[i], ps);
 		denominator += probabilities[i];
 	}
-
 	//normalize the probabilities
 	for (double& p :probabilities){
 		p/=denominator;
 	}
-
 	// Perform weighted random selection
 	std::random_device rd;
 	std::mt19937 gen(rd());
@@ -390,27 +404,23 @@ std::pair<Face_handle, Face_handle> impruveTriangulation(Custom_CDT& cdt,Polygon
 	int obtuse_faces=99999;
 	switch (selected_method){
 		case 0: {
-			std::cout<<"Selected projection\n";
 			//make copy, add the steiner, save the edited face and neighbor . What if neigbor doesn't exist or is outside. Do i care?
-			neighbor=ant_projection(cdt_copy, face_copy);
+			neighbor=ant_projection(cdt_copy, face_copy,boundary);
 			obtuse_faces=count_obtuse_faces(cdt_copy,boundary);
 			break;
 		}
 		case 1:{
-			std::cout<<"Selected longest edge\n";
 			//make copy, add the steiner, save the edited face and neighbor . What if neigbor doesn't exist or is outside. Do i care?
-			neighbor=ant_longest_edge(cdt_copy, face_copy);
+			neighbor=ant_longest_edge(cdt_copy, face_copy,boundary);
 			obtuse_faces=count_obtuse_faces(cdt_copy,boundary);
 			break;
 		}
 		case 2:{
-			std::cout<<"Selected circumcenter\n";
 			ant_circumcenter(cdt_copy, face_copy,boundary);
 			obtuse_faces=count_obtuse_faces(cdt_copy,boundary);
 			break;
 		}
 		case 3:{
-			std::cout<<"Selected merge\n";
 			neighbor=ant_merge(cdt_copy, face_copy, boundary);
 			obtuse_faces=count_obtuse_faces(cdt_copy,boundary);
 			break;
@@ -426,21 +436,7 @@ std::pair<Face_handle, Face_handle> impruveTriangulation(Custom_CDT& cdt,Polygon
 	else{
 		ant_energy=alpha*obtuse_faces +beta*(steiner_count+1);
 	}
-
 	return {face,neighbor};
-
-
-}
-//if the obtuse count didnt get reduced
-double update_pheromon_0(double t, double lambda){
-	return ( (1-lambda) * t );
-
-}
-//if the obtuse count got reduced
-double update_pheromon_1(double t, double lambda,double alpha, int obtuse_count, double beta, int steiner_count){
-	double denom=1+alpha*obtuse_count + beta* steiner_count;
-	return ( (1-lambda) * t + (1/denom) );
-
 }
 
 bool face_still_exists(Custom_CDT cdt,Face_handle face){
@@ -451,6 +447,7 @@ bool face_still_exists(Custom_CDT cdt,Face_handle face){
 	Point centroid= CGAL::centroid(p0,p1,p2);
 	Face_handle n_face = cdt.locate(centroid);
 	if( n_face == nullptr){
+		std::cout<<"NULL PTR ("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")\n";
 		return false;
 	}
 	Point np0=n_face->vertex(0)->point();
@@ -459,82 +456,120 @@ bool face_still_exists(Custom_CDT cdt,Face_handle face){
 
 	std::set<Point> og_points={p0,p1,p2};
 	std::set<Point> new_points={np0,np1,np2};
+	if(!(og_points==new_points)){
+		
+		std::cout<<"NEW PTR ("<<np0.x()<<","<<np0.y()<<")  "<<"("<<np1.x()<<","<<np1.y()<<")  "<<"("<<np2.x()<<","<<np2.y()<<")\n";
+		std::cout<<"NULL PTR ("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")\n";
+
+	}
 
 	return og_points==new_points;
 }
 
 void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points){
 
-
 	std ::vector<double> pheromones(5,1.0);
 	int current_steiner=steiner_points;
 	int temp_steiner=steiner_points;
-	double best_Energy=alpha*count_obtuse_faces(cdt,boundary) + beta*steiner_points;
+	int obt_count=count_obtuse_faces(cdt,boundary);
+	int temp_obt_count=obt_count;
+	double best_Energy=alpha*obt_count + beta*steiner_points;
 	std::vector<double> ant_energy(kappa,best_Energy);
 	std::vector<int> ant_method(kappa,-1);
-
-	Custom_CDT best_cdt(cdt);
+	Face_handle c_ant_face,c_ant_neigbor;
 	for(int t=0;t<L;t++){
-
+		//std::cout<<"Starting energy: "<<best_Energy<<std::endl;
 		//vector that will have each face each ant worked on
 		std::vector<std::pair<Face_handle, Face_handle>> ant_faces(kappa);
 		for(int ant=0;ant<kappa;ant++){
-		
 			//each ant should have its own cdt
-			auto [edited_face, neighbor_face]= impruveTriangulation( cdt, boundary, alpha, beta, current_steiner, xi, ps, pheromones, ant_energy[ant], ant_method[ant],best_Energy);
-			//then we count the obtuse faces of the "improved" cdt
-			ant_faces[ant] = {edited_face, neighbor_face};
+			ant_faces[ant]= impruveTriangulation( cdt, boundary, alpha, beta, current_steiner, xi, ps, pheromones, ant_energy[ant], ant_method[ant],best_Energy);
 		}
-
+		//extra can skip for now
 		for(int ant=0;ant<kappa;ant++){
 			if(ant_energy[ant]==0){
+				std::cout<<"Ant reduced energy to 0\n";
 				//apply the method i to the face i and break since we reduced obtuse to 0
 			}
-
 		}
 		//create index energy pair vector
 		std::vector<std::pair<double, int>> energy_index_pairs;
 		for(int i=0;i<kappa;i++){
 			energy_index_pairs.emplace_back(ant_energy[i],i);
 		}
-
 		//sort them from smallest to largest
 		std::sort(energy_index_pairs.begin(), energy_index_pairs.end());
-		//choose the ants that reduced the energy of the best cdt
-		//first apply the one that reduced the energy the most
-		//then by always choosing the one that reduced the most 
-		//to filter conflicts check if its the same face or 1 is the edited neighbor of the other
 		for(int ant=0;ant<kappa;ant++){
 			double current_ant_energy=energy_index_pairs[ant].first;
 			int current_ant_index=energy_index_pairs[ant].second;
+			//std::cout<<"Current ant: "<<current_ant_index<<" : "<<current_ant_energy<<std::endl;
 			if(current_ant_energy<best_Energy){
-				Face_handle c_ant_face=ant_faces[current_ant_index];
+				c_ant_face=ant_faces[current_ant_index].first;
+				c_ant_neigbor=ant_faces[current_ant_index].second;
 				int c_meth=ant_method[current_ant_index];
-				if(face_still_exists(best_cdt, c_ant_face)){
-					//apply the steiner
-					//update the pheramon[method]
-					temp_steiner=count_obtuse_faces(cdt,boundary);
-					if(temp_steiner<current_steiner){
-						//update pheromones 0
-						current_steiner=temp_steiner;
+				if(face_still_exists(cdt, c_ant_face)){
+					if(face_still_exists(cdt, c_ant_neigbor)){
+						Face_handle apply_face=find_face(cdt,c_ant_face);
+						switch (ant_method[current_ant_index]){
+							case 0: {
+								//std::cout<<"Selected projection edge\n";
+								ant_projection(cdt, apply_face,boundary);
+								break;
+							}
+							case 1:{
+								std::cout<<"Selected longest edge\n";
+								ant_longest_edge(cdt,apply_face,boundary);
+								break;
+							}
+							case 2:{
+								std::cout<<"Selected circumcenter\n";
+								ant_circumcenter(cdt,apply_face,boundary);
+								break;
+							}
+							case 3:{
+								std::cout<<"Selected merge\n";
+								ant_merge(cdt,apply_face, boundary);
+								break;
+							}
+							default:
+								std::cerr<<"Error: chose invalid method\n";
+								exit(-1);
+						}
+						current_steiner++;
+						temp_obt_count=count_obtuse_faces(cdt,boundary);
+						if(temp_obt_count<obt_count){
+							obt_count=temp_obt_count;
+							update_pheromon_1( t, lambda, alpha, obt_count, beta, current_steiner);
+						}
+						else{
+							std::cout<<"NEVER GONNA GIVE YOU UP\n";
+							obt_count=temp_obt_count;
+							pheromones[current_ant_index]=update_pheromon_0( t,  lambda);
+						}
 					}
 					else{
-						//update pheromones 1
-						current_steiner=temp_steiner;
+						std::cout<<"Neighbor doesnt exist "<<ant_method[current_ant_index]<<std::endl;
+
+						//Point p0 = c_ant_neigbor->vertex(0)->point();
+					Point p1 = c_ant_neigbor->vertex(1)->point();
+						Point p2 = c_ant_neigbor->vertex(2)->point();
+						//std::cout<<"("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")  ";
+
 					}
 				}
-
+				else{
+					std::cout<<"Face doesnt exist\n";
+				}
 			}
 			else{
-				//the ant increased the energy so we stop looking since the rest wont be used
-				break;
+				std::cout<<"Didnt improve energy\n";
+				pheromones[current_ant_index]=update_pheromon_0( t,  lambda);
 			}
-
-			
+			best_Energy=obt_count*alpha+current_steiner*beta;
 		}
-
-
-
+	}
+	for(int i=0;i<5;i++){
+		std::cout<<i<<": "<<pheromones[i];
 	}
 }
 
