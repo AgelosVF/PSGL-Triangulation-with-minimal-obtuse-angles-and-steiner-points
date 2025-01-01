@@ -12,6 +12,7 @@
 #include "../Header Files/boost_utils.hpp"
 #include "../Header Files/triangulation_utils.hpp"
 #include "../Header Files/CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
+#include "../Header Files/BoundaryType.hpp"
 //boost libraries
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -29,44 +30,6 @@
 #include <CGAL/polygon_function_objects.h>
 #include <CGAL/Polygon_2.h>
 #include <CGAL/draw_polygon_2.h>
-
-
-bool non_convex_parrallel(Polygon_2 boundary){
-
-	for(auto  e  : boundary.edges()){
-		
-		Point p= e.start();
-		Point p2=e.end();
-		//std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
-		if(p.x()!=p2.x() && p.y() != p2.y()){
-			std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
-			return false;
-		}
-	}
-	return true;
-}
-
-bool is_convex(Polygon_2 boundary){
-	if(boundary.is_convex())
-		return true;
-	else
-		return false;
-}
-
-bool convex_no_constrains(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
-	if(is_convex(boundary) && additional_constrains.empty())
-		return true;
-	else
-		return false;
-}
-bool convex_closed_constraints(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
-	if(is_convex(boundary) && !(additional_constrains.empty())){
-
-		return true;
-	}
-	else
-		return false;
-}
 
 
 int main(int argc,char *argv[]){
@@ -113,6 +76,7 @@ int main(int argc,char *argv[]){
 		std::cout<<region_boundary[i]<<std::endl;
 
 	}
+	std::cout<<"Additional Constrains\n";
 	for(unsigned int i=0;i<additional_constrains.size();i++){
 		std::cout<<additional_constrains[i].first<<", "<<additional_constrains[i].second<<std::endl;
 	}
@@ -135,8 +99,18 @@ int main(int argc,char *argv[]){
 	for (int i : region_boundary) {
 		region_polygon.push_back(Point(points_x[i], points_y[i]));
 	}
-
-	std::cout<<"IS IT CONVEX:"<<is_convex(region_polygon)<<std::endl;
+	std::vector<int> cycle;
+	Polygon_2 Pcycle;
+	std::cout<<"IS IT CONVEX with cicle:"<<convex_cycle_constrains(region_boundary, additional_constrains, cycle)<<" cicle: ";
+	for(unsigned int i=0;i<cycle.size();i++){
+		std::cout<<cycle[i]<<"->";
+		int x=cycle[i];
+		Pcycle.push_back(Point(points_x[x],points_y[x]));
+	}
+	if(cycle.size()>2){
+		CGAL::draw(Pcycle);
+	}
+	std::cout<<std::endl;
 	std::cout<<"IS IT CONVEX WITH NO CONSTRAINTS:"<<convex_no_constrains(region_polygon,additional_constrains)<<std::endl;
 	std::cout<<"IS IT PARRALEL:"<<non_convex_parrallel(region_polygon)<<std::endl;
 	
