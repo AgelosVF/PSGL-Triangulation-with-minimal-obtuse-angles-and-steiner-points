@@ -31,6 +31,43 @@
 #include <CGAL/draw_polygon_2.h>
 
 
+bool non_convex_parrallel(Polygon_2 boundary){
+
+	for(auto  e  : boundary.edges()){
+		
+		Point p= e.start();
+		Point p2=e.end();
+		//std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
+		if(p.x()!=p2.x() && p.y() != p2.y()){
+			std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
+			return false;
+		}
+	}
+	return true;
+}
+
+bool is_convex(Polygon_2 boundary){
+	if(boundary.is_convex())
+		return true;
+	else
+		return false;
+}
+
+bool convex_no_constrains(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
+	if(is_convex(boundary) && additional_constrains.empty())
+		return true;
+	else
+		return false;
+}
+bool convex_closed_constraints(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
+	if(is_convex(boundary) && !(additional_constrains.empty())){
+
+		return true;
+	}
+	else
+		return false;
+}
+
 
 int main(int argc,char *argv[]){
 	if(argc != 5){
@@ -70,8 +107,16 @@ int main(int argc,char *argv[]){
 	std::vector<std::pair<int,int>> additional_constrains= extract_additional_constrains(pt);
 	boost::optional<std::string> inst_iud = pt.get_optional<std::string>("instance_uid");
 
-	std::string method=extract_method(pt);
-	boost::property_tree::ptree parameters=extract_parameters(pt);
+
+	std::cout<<"Region boundary\n";
+	for(unsigned int i=0;i<region_boundary.size();i++){
+		std::cout<<region_boundary[i]<<std::endl;
+
+	}
+	for(unsigned int i=0;i<additional_constrains.size();i++){
+		std::cout<<additional_constrains[i].first<<", "<<additional_constrains[i].second<<std::endl;
+	}
+
 	if(!inst_iud){
 		std::cerr<<"Error: missing inst_iud from JSON file"<<std::endl;
 		exit(-1);
@@ -86,29 +131,42 @@ int main(int argc,char *argv[]){
 	//use custom function to put the points and constrains in the trianglulation
 	fill_initial_cdt(cdel_tri, points_x, points_y, region_boundary, additional_constrains);
 
-	// Mark the domain inside the region boundary
-	std::unordered_map<Face_handle, bool> in_domain_map;
-	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
-	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
-	//create the polygon of the region boundry
 	Polygon_2 region_polygon;
 	for (int i : region_boundary) {
 		region_polygon.push_back(Point(points_x[i], points_y[i]));
 	}
 
+	std::cout<<"IS IT CONVEX:"<<is_convex(region_polygon)<<std::endl;
+	std::cout<<"IS IT CONVEX WITH NO CONSTRAINTS:"<<convex_no_constrains(region_polygon,additional_constrains)<<std::endl;
+	std::cout<<"IS IT PARRALEL:"<<non_convex_parrallel(region_polygon)<<std::endl;
+	
+	CGAL::draw(region_polygon);
+
+	// Mark the domain inside the region boundary
+	std::unordered_map<Face_handle, bool> in_domain_map;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
+	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
+	CGAL::draw(cdel_tri,in_domain);
+	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
+	std::cout<<obtuse_count<<std::endl;
+	//create the polygon of the region boundry
 	int steiner_count=0;
+
+/*
+	//MOVED
+	std::string method=extract_method(pt);
+	boost::property_tree::ptree parameters=extract_parameters(pt);
+
 /*
 	if(!(extract_delaunay(pt))){
 		std::cout<<"Starting by using applying the previous Project to the triangulation\n";
 		steiner_count+=previous_triangulation(cdel_tri, region_polygon);
 	}
-	*/
-	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 
-	std::cout<<obtuse_count<<std::endl;
+
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
-	CGAL::draw(cdel_tri,in_domain);
-	ant_colony(cdel_tri,region_polygon,4.0 ,0.01, 1.0, 3.0, 0.5, 3, 1000, 0);
+	//void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points
+	ant_colony(cdel_tri,region_polygon,4.0 ,0.01, 1.0, 3.0, 0.5, 11, 4, 0);
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
 	CGAL::draw(cdel_tri,in_domain);
 	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
@@ -141,13 +199,15 @@ int main(int argc,char *argv[]){
 	ant_colony(cdel_tri,region_polygon,4.0 ,2.0, 1.0, 3.0, 0.5, 4, 30, obtuse_count);
 	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
 	
-	*/
+	
 	// Generate the output JSON file
 	std::vector<Point> initial_points;
 	for (size_t i = 0; i < points_x.size(); ++i) {
 		initial_points.emplace_back(points_x[i], points_y[i]);
 	}
+	
 	generate_output_json(cdel_tri, inst_iud, initial_points, region_polygon, output_file,  method, parameters, obtuse_count);
+	*/
 	return 0;
 }
 

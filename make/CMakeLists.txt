@@ -41,6 +41,8 @@ find_package(Qt5 REQUIRED COMPONENTS Core Gui)
 
 # Set up the compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++14 -g")
+set(CMAKE_BUILD_TYPE Debug)
 
 # Link against CGAL, Boost, and Qt5
 target_link_libraries(Triangulation
