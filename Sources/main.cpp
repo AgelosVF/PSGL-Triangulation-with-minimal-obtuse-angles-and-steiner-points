@@ -33,26 +33,40 @@
 
 
 int main(int argc,char *argv[]){
-	if(argc != 5){
-		std::cout<<"Usage: "<<argv[0]<<" -i /path/to/input.json -o /path/to/output.json"<<std::endl;
+	if( (argc != 5) && (argc!=6 )){
+		std::cout<<"Usage: "<<argv[0]<<" -i /path/to/input.json -o /path/to/output.json (optional -preselected_params) "<<argc<<std::endl;
 		return 1;
 	}
 	std::string input_file,output_file;
-
-	for(int i=1;i<argc;i+=2){
+	bool preselect=false;
+	bool flag1=false,flag2=false;
+	for(int i=1;i<argc;i++){
 		if(strcmp(argv[i], "-i")==0){
 			input_file=argv[i+1];
+			i++;
+			flag1=true;
 		}else if (strcmp(argv[i], "-o")==0){
 			output_file=argv[i+1];
-		}else {
-			std::cerr<<"Error: Uknown flag"<<argv[i]<<std::endl;
-			return 0;
+			i++;
+			flag2=true;
+		}else if (strcmp(argv[i], "-preselected_params")==0){
+			preselect=true;
 		}
-
 	}
-
-	if(input_file.empty() || output_file.empty()){
-		std::cerr<< "Error: Missing input or output file path."<<std::endl;
+	if( !flag1 || !flag2 || (preselect==false && argc!=5)){
+		std::cerr<<"Error:invalid parameters. Run ./"<<argv[0]<<" if you want to see expected input.\n";
+		if(!flag1)
+			std::cerr<<"Missing input flag\n";
+		if(!flag2)
+			std::cerr<<"Missing output flag\n";
+		return 0;
+	}
+	if(input_file.empty()){
+		std::cerr<< "Error: Missing input file path."<<std::endl;
+		return 0;
+	}
+	if(output_file.empty()){
+		std::cerr<< "Error: Missing output file path."<<std::endl;
 		return 0;
 	}
 
@@ -71,6 +85,7 @@ int main(int argc,char *argv[]){
 	boost::optional<std::string> inst_iud = pt.get_optional<std::string>("instance_uid");
 
 
+	/*
 	std::cout<<"Region boundary\n";
 	for(unsigned int i=0;i<region_boundary.size();i++){
 		std::cout<<region_boundary[i]<<std::endl;
@@ -80,7 +95,7 @@ int main(int argc,char *argv[]){
 	for(unsigned int i=0;i<additional_constrains.size();i++){
 		std::cout<<additional_constrains[i].first<<", "<<additional_constrains[i].second<<std::endl;
 	}
-
+	*/
 	if(!inst_iud){
 		std::cerr<<"Error: missing inst_iud from JSON file"<<std::endl;
 		exit(-1);
@@ -99,44 +114,60 @@ int main(int argc,char *argv[]){
 	for (int i : region_boundary) {
 		region_polygon.push_back(Point(points_x[i], points_y[i]));
 	}
-	std::vector<int> cycle;
-	Polygon_2 Pcycle;
-	std::cout<<"IS IT CONVEX with cicle:"<<convex_cycle_constrains(region_boundary, additional_constrains, cycle)<<" cicle: ";
-	for(unsigned int i=0;i<cycle.size();i++){
-		std::cout<<cycle[i]<<"->";
-		int x=cycle[i];
-		Pcycle.push_back(Point(points_x[x],points_y[x]));
-	}
-	if(cycle.size()>2){
-		CGAL::draw(Pcycle);
-	}
-	std::cout<<std::endl;
-	std::cout<<"IS IT CONVEX WITH NO CONSTRAINTS:"<<convex_no_constrains(region_polygon,additional_constrains)<<std::endl;
-	std::cout<<"IS IT PARRALEL:"<<non_convex_parrallel(region_polygon)<<std::endl;
-	
 	CGAL::draw(region_polygon);
 
+	std::vector<int> closed_p;
+	Polygon_2 Pcycle;
+	int type=boundary_type(region_polygon,region_boundary, additional_constrains, closed_p);
+	if(closed_p.size()>2){
+		for(unsigned int i=0;i<closed_p.size();i++){
+			std::cout<<closed_p[i]<<"->";
+			int x=closed_p[i];
+			Pcycle.push_back(Point(points_x[x],points_y[x]));
+		}
+		CGAL::draw(Pcycle);
+	}
+	
 	// Mark the domain inside the region boundary
 	std::unordered_map<Face_handle, bool> in_domain_map;
 	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
 	CGAL::draw(cdel_tri,in_domain);
+
 	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 	std::cout<<obtuse_count<<std::endl;
 	//create the polygon of the region boundry
 	int steiner_count=0;
 
+	if(preselect==true){
+		std::string method=extract_method(pt);
+		boost::property_tree::ptree parameters=extract_parameters(pt);
+
+		if(!(extract_delaunay(pt))){
+			std::cout<<"Starting by using applying the previous Project to the triangulation\n";
+			steiner_count+=previous_triangulation(cdel_tri, region_polygon);
+		}
+		if(method=="local"){
+			int L;
+			extract_local_parameters(parameters, L);
+			steiner_count+=local_search(cdel_tri, region_polygon, 5000, in_domain);
+		}
+		else if(method=="SA"){
+			double alpha,beta;
+			int L;
+			extract_sa_parameters(parameters,alpha, beta, L);
+			simulated_annealing(cdel_tri,region_polygon,in_domain, steiner_count, alpha, beta, L);
+		}
+		else if (method=="ant") {
+			double alpha,beta,xi,psi,lambda;
+			int kappa,L;
+			extract_ant_parameters(parameters,alpha, beta, xi, psi, lambda, kappa, L);
+			std::cout<<"Ant colony still under constraction the code is in AntCollony.cpp but isnt linked to program.\n";
+		
+		}
+	}
 /*
 	//MOVED
-	std::string method=extract_method(pt);
-	boost::property_tree::ptree parameters=extract_parameters(pt);
-
-/*
-	if(!(extract_delaunay(pt))){
-		std::cout<<"Starting by using applying the previous Project to the triangulation\n";
-		steiner_count+=previous_triangulation(cdel_tri, region_polygon);
-	}
-
 
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
 	//void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points
@@ -146,25 +177,7 @@ int main(int argc,char *argv[]){
 	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
 
-	/*
-	if(method=="local"){
-		int L;
-		extract_local_parameters(parameters, L);
-		steiner_count+=local_search(cdel_tri, region_polygon, 5000, in_domain);
-	}
-	else if(method=="SA"){
-		double alpha,beta;
-		int L;
-		extract_sa_parameters(parameters,alpha, beta, L);
-		simulated_annealing(cdel_tri,region_polygon,in_domain, steiner_count, alpha, beta, L);
-	}
-	else if (method=="ant") {
-		double alpha,beta,xi,psi,lambda;
-		int kappa,L;
-		extract_ant_parameters(parameters,alpha, beta, xi, psi, lambda, kappa, L);
-		std::cout<<"Ant colony still under constraction the code is in AntCollony.cpp but isnt linked to program.\n";
-	
-	}
+
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
 	CGAL::draw(cdel_tri,in_domain);
 	

@@ -10,8 +10,5 @@
 #include <unordered_set>
 
 
-bool convex_no_constrains(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains);
-
-bool non_convex_parrallel(Polygon_2 boundary);
-bool convex_cycle_constrains(const std::vector<int>& region_boundary, const std::vector<std::pair<int, int>>& additional_constraints,std::vector<int>& cycle);
+int boundary_type(Polygon_2 boundary,const std::vector<int>& region_boundary, const std::vector<std::pair<int,int>>& additional_constrains, std::vector<int>& closed_p);
 #endif

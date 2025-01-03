@@ -17,8 +17,8 @@ bool is_convex(Polygon_2 boundary){
 		return false;
 }
 
-bool convex_no_constrains(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
-	if(is_convex(boundary) && additional_constrains.empty())
+bool no_constrains(std::vector<std::pair<int,int>> additional_constrains){
+	if(additional_constrains.empty())
 		return true;
 	else
 		return false;
@@ -122,44 +122,33 @@ bool convex_cycle_constrains(const std::vector<int>& region_boundary, const std:
 	return false; // No cycles detected
 }
 
+int boundary_type(Polygon_2 boundary,const std::vector<int>& region_boundary, const std::vector<std::pair<int,int>>& additional_constrains, std::vector<int>& closed_p){
 
-/*
-bool non_convex_parrallel(Polygon_2 boundary){
-
-	for(auto  e  : boundary.edges()){
-		
-		Point p= e.start();
-		Point p2=e.end();
-		//std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
-		if(p.x()!=p2.x() && p.y() != p2.y()){
-			std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
-			return false;
+	if(is_convex(boundary)){
+		if(no_constrains(additional_constrains)){
+			std::cout<<"Is convex with no additional constrains\n";
+			return 1;
+		}
+		else if (convex_cycle_constrains(region_boundary, additional_constrains, closed_p)){
+			std::cout<<"Is convex with constrains \" ";
+			for(unsigned int i=0;i<closed_p.size();i++){
+				std::cout<<closed_p[i]<<"->";
+			}
+			std::cout<<" \" making a closed polygon\n";
+			return 3;
+		}
+		else{
+			std::cout<<"Is convex with open constrains\n";
+			closed_p.clear(); // Clear the cycle vector before starting DFS
+			return 2;
 		}
 	}
-	return true;
-}
-
-bool is_convex(Polygon_2 boundary){
-	if(boundary.is_convex())
-		return true;
-	else
-		return false;
-}
-
-bool convex_no_constrains(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
-	if(is_convex(boundary) && additional_constrains.empty())
-		return true;
-	else
-		return false;
-}
-bool convex_closed_constraints(Polygon_2 boundary,std::vector<std::pair<int,int>> additional_constrains){
-	if(is_convex(boundary) && !(additional_constrains.empty())){
-
-		return true;
+	else if (non_convex_parrallel(boundary)&&no_constrains(additional_constrains)) {
+		std::cout<<"Is non convex with parrallel boundary edges to xx' or yy' and no additional constrains\n";
+		return 4;
+	
 	}
-	else
-		return false;
+	std::cout<<"Doesnt belong to any of the 4 predetermined categories\n";
+	return 5;
 }
 
-
-*/
