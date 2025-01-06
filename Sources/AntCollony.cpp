@@ -1,7 +1,6 @@
-
 #include "../Header Files/CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
 #include "../Header Files/triangulation_utils.hpp"
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Kernel/global_functions_3.h>
 #include <CGAL/enum.h>
 #include <CGAL/squared_distance_2.h>
@@ -10,41 +9,83 @@
 #include <iostream>
 #include <ostream>
 #include <random>
+#include <thread>
 
 
 //-------------------------------Helping functions-----------------------------------------------------//
 
-bool face_still_exists(Custom_CDT cdt, Face_handle face){
-
-	Point p0 = face->vertex(0)->point();
-	Point p1 = face->vertex(1)->point();
-	Point p2 = face->vertex(2)->point();
-	Point centroid = CGAL::centroid(p0,p1,p2);
-	Face_handle n_face = cdt.locate(centroid);
-
-	if( n_face == nullptr){
-		std::cout<<"Got Null ptr when trying to locate face: ("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")\n";
+bool same_face(Face_handle face1, Face_handle face2){
+	if( face1==nullptr){
+		std::cerr<<"Got null face for face 1\n";
 		return false;
 	}
+	else if( face2==nullptr){
+		std::cerr<<"Got null face for face 2\n";
+		return false;
+	}
+	Point p0=face1->vertex(0)->point();
+	Point p1=face1->vertex(1)->point();
+	Point p2=face1->vertex(2)->point();
 
-
-	Point np0=n_face->vertex(0)->point();
-	Point np1=n_face->vertex(1)->point();
-	Point np2=n_face->vertex(2)->point();
+	Point np0=face2->vertex(0)->point();
+	Point np1=face2->vertex(1)->point();
+	Point np2=face2->vertex(2)->point();
 
 	std::set<Point> og_points={p0,p1,p2};
 	std::set<Point> new_points={np0,np1,np2};
-
-
-	if(!(og_points==new_points)){
-		
-		std::cout<<"NEW PTR ("<<np0.x()<<","<<np0.y()<<")  "<<"("<<np1.x()<<","<<np1.y()<<")  "<<"("<<np2.x()<<","<<np2.y()<<")\n";
-		std::cout<<"NULL PTR ("<<p0.x()<<","<<p0.y()<<")  "<<"("<<p1.x()<<","<<p1.y()<<")  "<<"("<<p2.x()<<","<<p2.y()<<")\n";
-
-	}
-
+	
 	return og_points==new_points;
 }
+// Helper function to mark duplicate faces
+void resolve_conflicts(std::vector<std::pair<double, int>>& energy_index_pairs, std::vector<std::pair<Face_handle, Face_handle>>& ant_faces) {
+	for(size_t i = 0; i < energy_index_pairs.size(); i++) {
+		// Skip already marked faces
+		if(energy_index_pairs[i].second == -1) continue;
+
+		int current_ant_index = energy_index_pairs[i].second;
+		Face_handle current_face = ant_faces[current_ant_index].first;
+		Face_handle current_neighbor = ant_faces[current_ant_index].second;
+
+		// Compare with all subsequent faces
+		for(size_t j = i + 1; j < energy_index_pairs.size(); j++) {
+			if(energy_index_pairs[j].second == -1) continue;
+
+			int compare_ant_index = energy_index_pairs[j].second;
+			Face_handle compare_face = ant_faces[compare_ant_index].first;
+			Face_handle compare_neighbor = ant_faces[compare_ant_index].second;
+
+
+			// Check if either the face or neighbor matches
+			if(same_face(current_face, compare_face)){
+				//std::cout<<"Same face\n";
+				energy_index_pairs[j].second = -1;
+			}
+			else if(compare_neighbor != nullptr){
+				//std::cout<<"compare neighbor exists\n";
+
+				if(same_face(current_face, compare_neighbor)){
+					//std::cout<<"Same face and neighbor\n";
+					energy_index_pairs[j].second = -1;
+					}
+
+			}
+			else if(current_neighbor!=nullptr){
+				//std::cout<<"Current neighbor exists\n";
+				if(same_face(current_neighbor, compare_face)){
+					energy_index_pairs[j].second=-1;
+					//std::cout<<"Same neighbor and face\n";
+				}
+				if(compare_neighbor!=nullptr){
+					if( same_face(current_neighbor,compare_neighbor)){
+						//std::cout<<"Same neighbor\n";
+						energy_index_pairs[j].second = -1;
+					}
+				}
+			}
+		}
+	}
+}
+
 
 // Function to compute the distance between two points
 double compute_distance(const Point& p1, const Point p2) {
@@ -422,25 +463,25 @@ std::pair <Face_handle, Face_handle> ImproveTriangulation(Custom_CDT& cdt, Polyg
 
 	Custom_CDT cdt_copy(cdt);
 	Face_handle face_copy=find_face(cdt_copy,face);
-	Face_handle neighbor;
+	Face_handle neighbor_copy;
 
 	switch (selected_method){
 		case 0: {
 			//make copy, add the steiner, save the edited face and neighbor . What if neigbor doesn't exist or is outside. Do i care?
-			neighbor=ant_projection(cdt_copy, face_copy,boundary);
+			neighbor_copy=ant_projection(cdt_copy, face_copy,boundary);
 			break;
 		}
 		case 1:{
-			//make copy, add the steiner, save the edited face and neighbor . What if neigbor doesn't exist or is outside. Do i care?
-			neighbor=ant_longest_edge(cdt_copy, face_copy,boundary);
+			//make copy, add the steiner, save the edited face and neighbor_copy . What if neigbor doesn't exist or is outside. Do i care?
+			neighbor_copy=ant_longest_edge(cdt_copy, face_copy,boundary);
 			break;
 		}
 		case 2:{
-			ant_circumcenter(cdt_copy, face_copy,boundary);
+			neighbor_copy=ant_circumcenter(cdt_copy, face_copy,boundary);
 			break;
 		}
 		case 3:{
-			neighbor=ant_merge(cdt_copy, face_copy, boundary);
+			neighbor_copy=ant_merge(cdt_copy, face_copy, boundary);
 			break;
 		}
 		default:
@@ -449,6 +490,7 @@ std::pair <Face_handle, Face_handle> ImproveTriangulation(Custom_CDT& cdt, Polyg
 	}
 
 	int obtuse_faces=count_obtuse_faces(cdt_copy,boundary);
+	Face_handle neighbor=find_face(cdt,neighbor_copy);
 
 	if(obtuse_faces==0){
 		ant_energy=0;
@@ -456,6 +498,7 @@ std::pair <Face_handle, Face_handle> ImproveTriangulation(Custom_CDT& cdt, Polyg
 	else{
 		ant_energy=alpha*obtuse_faces +beta*(steiner_count+1);
 	}
+
 	return {face,neighbor};
 
 }
@@ -470,96 +513,122 @@ double increase_pheromon(double t,double lambda, double ant_energy){
 }
 
 
+void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points) {
+	int obt_count = count_obtuse_faces(cdt, boundary);
+	double best_Energy = alpha * obt_count + beta * steiner_points;
 
-void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points){
+	std::vector<double> pheromones(4, 0.5);
+	std::vector<double> ant_energy(kappa, best_Energy);
+	std::vector<int> ant_method(kappa, -1);
 
-	int obt_count=count_obtuse_faces(cdt,boundary);
-	double best_Energy=alpha*obt_count+beta*steiner_points;
-
-	std::vector<double> pheromones(4,0.5);
-	std::vector<double> ant_energy(kappa,best_Energy);
-	std::vector<int> ant_method(kappa,-1);
-
-	Face_handle c_ant_face,c_ant_neighbor;
+	Face_handle c_ant_face, c_ant_neighbor;
 	double current_ant_energy;
 	int current_ant_index;
 	int cycle_steiners_added;
-	for(int t=0;t<L;t++){
-		cycle_steiners_added=0;
-		//vector for each ant with the face it worked on and neighbor it changed (potentialy)
+	int merge_used = 0, proj_used = 0, longest_used = 0, circum_used = 0;
+
+	// Function to be executed by each thread
+	auto ant_task = [&](int ant_id, std::vector<std::pair<Face_handle, Face_handle>>& ant_faces) {
+		// These variables are unique per ant/thread, so no mutex needed
+		ant_faces[ant_id] = ImproveTriangulation(cdt, boundary, alpha, beta, xi, psi, steiner_points, ant_energy[ant_id], pheromones, ant_method[ant_id]);
+	};
+
+	for (int t = 0; t < L; t++) {
+		cycle_steiners_added = 0;
 		std::vector<std::pair<Face_handle, Face_handle>> ant_faces(kappa);
-		//each ant chooses a random method, applies it to its own cdt and returns the results
-		for(int ant=0;ant<kappa;ant++){
-			ant_faces[ant]=ImproveTriangulation(cdt, boundary, alpha, beta, xi, psi, steiner_points, ant_energy[ant], pheromones, ant_method[ant]);
+		std::vector<std::thread> threads;
+
+		// Launch threads for each ant
+		for (int ant = 0; ant < kappa; ant++) {
+			threads.emplace_back(ant_task, ant, std::ref(ant_faces));
 		}
-		//vector with [energy,ant_index] that will sort by energy
-		std::vector<std::pair<double,int>> energy_index_pairs;
-		for(int i=0;i<kappa;i++){
-			energy_index_pairs.emplace_back(ant_energy[i],i);
+
+		// Wait for all threads to complete
+		for (auto& thread : threads) {
+			thread.join();
 		}
-		std::sort(energy_index_pairs.begin(),energy_index_pairs.end());
-		//for each ant
-		for(int ant=0;ant<kappa;ant++){
-			current_ant_energy=energy_index_pairs[ant].first;
-			current_ant_index=energy_index_pairs[ant].second;
-			//if the ant reduces the energy of the previous cycle
-			if(current_ant_energy<best_Energy){
-				//if both of the faces that will change still exist
-				if(face_still_exists(cdt,c_ant_face)){
-					if(face_still_exists(cdt, c_ant_neighbor)){
-						Face_handle apply_face=find_face(cdt,c_ant_face);
-						switch (ant_method[current_ant_index]){
-							case 0: {
-								//std::cout<<"Selected projection edge\n";
-								ant_projection(cdt, apply_face,boundary);
-								break;
-							}
-							case 1:{
-								std::cout<<"Selected longest edge\n";
-								ant_longest_edge(cdt,apply_face,boundary);
-								break;
-							}
-							case 2:{
-								std::cout<<"Selected circumcenter\n";
-								ant_circumcenter(cdt,apply_face,boundary);
-								break;
-							}
-							case 3:{
-								std::cout<<"Selected merge\n";
-								ant_merge(cdt,apply_face, boundary);
-								break;
-							}
-							default:
-								std::cerr<<"Error: chose invalid method\n";
-								exit(-1);
-							}
-						cycle_steiners_added++;
-						//reinforce pheromon
-						pheromones[ant_method[current_ant_index]]=increase_pheromon(t, lambda, current_ant_energy);
-						
-					}
-					else{
-						std::cout<<"Face exists but neighbor doesnt exist "<<ant_method[current_ant_index]<<std::endl;
-						pheromones[ant_method[current_ant_index]]=decrease_pheromon( t, lambda);
-					}
+
+		// Sort results by energy
+		std::vector<std::pair<double, int>> energy_index_pairs;
+		for (int i = 0; i < kappa; i++) {
+			energy_index_pairs.emplace_back(ant_energy[i], i);
+		}
+		std::sort(energy_index_pairs.begin(), energy_index_pairs.end());
+
+		// Resolve conflicts
+		resolve_conflicts(energy_index_pairs, ant_faces);
+
+		// Apply changes from successful ants
+		for (int ant = 0; ant < kappa; ant++) {
+			if (energy_index_pairs[ant].second == -1) continue;
+
+			current_ant_energy = energy_index_pairs[ant].first;
+			current_ant_index = energy_index_pairs[ant].second;
+
+			if (current_ant_energy < best_Energy) {
+				c_ant_face = ant_faces[current_ant_index].first;
+				c_ant_neighbor = ant_faces[current_ant_index].second;
+				Face_handle apply_face = find_face(cdt, c_ant_face);
+
+				switch (ant_method[current_ant_index]) {
+				case 0: {
+					ant_projection(cdt, apply_face, boundary);
+					proj_used++;
+					break;
 				}
-				else{
-					std::cout<<"Face  exist "<<ant_method[current_ant_index]<<std::endl;
-					pheromones[ant_method[current_ant_index]]=decrease_pheromon( t, lambda);
+				case 1: {
+					ant_longest_edge(cdt, apply_face, boundary);
+					longest_used++;
+					break;
 				}
+				case 2: {
+					ant_circumcenter(cdt, apply_face, boundary);
+					circum_used++;
+					break;
+				}
+				case 3: {
+					ant_merge(cdt, apply_face, boundary);
+					merge_used++;
+					break;
+				}
+				default:
+					std::cerr << "Error: chose invalid method\n";
+					exit(-1);
+				}
+				cycle_steiners_added++;
+
+				if (current_ant_energy == 0) {
+					obt_count = count_obtuse_faces(cdt, boundary);
+					if (obt_count != 0) {
+						std::cerr << "Ant energy is 0 but there are still obtuse faces in the cdt\n";
+					}
+					steiner_points += cycle_steiners_added;
+					best_Energy = obt_count * alpha + steiner_points * beta;
+					std::cout << "Used:\n\tMerges:" << merge_used 
+					<< "\n\tCircumcenter:" << circum_used 
+					<< "\n\tLongest edge:" << longest_used 
+					<< "\n\tProjections:" << proj_used << std::endl;
+					return;
+				}
+
+				pheromones[ant_method[current_ant_index]] = 
+				increase_pheromon(t, lambda, current_ant_energy);
 			}
-			else{
-				//didnt decrease energy
-				pheromones[ant_method[current_ant_index]]=decrease_pheromon( t, lambda);
+			else {
+				pheromones[ant_method[current_ant_index]] =decrease_pheromon(t, lambda);
 			}
 		}
-		//for each ant
-		//if changes were made
-		if(cycle_steiners_added){
-			obt_count=count_obtuse_faces(cdt,boundary);
-			steiner_points+=cycle_steiners_added;
-			best_Energy=obt_count*alpha + steiner_points*beta;
+
+		if (cycle_steiners_added) {
+			obt_count = count_obtuse_faces(cdt, boundary);
+			steiner_points += cycle_steiners_added;
+			best_Energy = obt_count * alpha + steiner_points * beta;
 		}
 	}
+
+	std::cout<< "Used:\n\tMerges:" << merge_used 
+		<< "\n\tCircumcenter:" << circum_used 
+		<< "\n\tLongest edge:" << longest_used 
+		<< "\n\tProjections:" << proj_used << std::endl;
 }
 

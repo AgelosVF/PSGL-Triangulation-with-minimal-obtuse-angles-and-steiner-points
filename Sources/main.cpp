@@ -114,7 +114,7 @@ int main(int argc,char *argv[]){
 	for (int i : region_boundary) {
 		region_polygon.push_back(Point(points_x[i], points_y[i]));
 	}
-	CGAL::draw(region_polygon);
+	//CGAL::draw(region_polygon);
 
 	std::vector<int> closed_p;
 	Polygon_2 Pcycle;
@@ -125,24 +125,26 @@ int main(int argc,char *argv[]){
 			int x=closed_p[i];
 			Pcycle.push_back(Point(points_x[x],points_y[x]));
 		}
-		CGAL::draw(Pcycle);
+		//CGAL::draw(Pcycle);
 	}
+	std::cout<<std::endl;
 	
 	// Mark the domain inside the region boundary
 	std::unordered_map<Face_handle, bool> in_domain_map;
 	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
+	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
+	std::cout<<"Original obtuse count: "<<obtuse_count<<std::endl;
 	CGAL::draw(cdel_tri,in_domain);
 
-	unsigned int obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
-	std::cout<<obtuse_count<<std::endl;
 	//create the polygon of the region boundry
 	int steiner_count=0;
 
+	std::string method;
+	boost::property_tree::ptree parameters;
 	if(preselect==true){
-		std::string method=extract_method(pt);
-		boost::property_tree::ptree parameters=extract_parameters(pt);
-
+		method=extract_method(pt);
+		parameters=extract_parameters(pt);
 		if(!(extract_delaunay(pt))){
 			std::cout<<"Starting by using applying the previous Project to the triangulation\n";
 			steiner_count+=previous_triangulation(cdel_tri, region_polygon);
@@ -166,25 +168,21 @@ int main(int argc,char *argv[]){
 		
 		}
 	}
-/*
+
 	//MOVED
 
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
-	//void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points
-	ant_colony(cdel_tri,region_polygon,4.0 ,0.01, 1.0, 3.0, 0.5, 11, 4, 0);
+	//void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points){
+	ant_colony(cdel_tri,region_polygon,4.0 ,0.01, 1.0, 3.0, 0.5, 7, 100, 0);
+	//steiner_count+=local_search(cdel_tri, region_polygon, 5000, in_domain);
+	
+
+
 	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);	
-	CGAL::draw(cdel_tri,in_domain);
 	obtuse_count=count_obtuse_faces(cdel_tri,in_domain);
 	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
-
-
-	CGAL::mark_domain_in_triangulation(cdel_tri, in_domain);
 	CGAL::draw(cdel_tri,in_domain);
-	
-	/*
-	obtuse_count=count_obtuse_faces(cdel_tri, in_domain);
-	ant_colony(cdel_tri,region_polygon,4.0 ,2.0, 1.0, 3.0, 0.5, 4, 30, obtuse_count);
-	std::cout<<"Final obtuse count:"<<obtuse_count<<std::endl;
+
 	
 	
 	// Generate the output JSON file
@@ -194,7 +192,6 @@ int main(int argc,char *argv[]){
 	}
 	
 	generate_output_json(cdel_tri, inst_iud, initial_points, region_polygon, output_file,  method, parameters, obtuse_count);
-	*/
 	return 0;
 }
 
