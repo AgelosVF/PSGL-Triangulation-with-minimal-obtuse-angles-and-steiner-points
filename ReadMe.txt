@@ -5,10 +5,12 @@ Files and Directories:
 ├── build 	<-- Inside will be built the executable Triangulation
 ├── Header Files 	<-- Contrains the header files
 │   ├── boost_utils.hpp		<-- Functions used to read from json file	
-│   ├── CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h	<--Custom cdt class used.Added more methods to avoid flips.
+│   ├── CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h <--Custom cdt class used.Added more methods to avoid
+│   │								flips.
 │   └── triangulation_utils.hpp		<--Functions rest of functions used between the files
 ├── make		<-- Inside there is the CMakeLists.txt
 │   └── CMakeLists.txt
+│   └── Make_And_Libs   <-- Empty directory where you can run cmake .. to compile
 └── Sources		<-- All the source code for the functions used.
     ├── boost_utils.cpp		<--Source code of functions used to read the json file.
     ├── LocalSearch.cpp		<--Source code of the local search.
@@ -21,7 +23,7 @@ Files and Directories:
     ├── triangulation_utils.cpp <--Source code of other helping functions.
     └── AntCollony		<--Source code of the ant collony method.
 How to compile and run:
-	Inside the make directory there is the CMakeLists.txt. If you run cmake. inside and after
+	Inside the make directory there is the CMakeLists.txt. If you go to run cmake. inside and after
 	make the files will be compiled and in the build directory the executable Triangulation
 	will be created.
 	To run the program you call ./Triangulation -i /path/to/input.json -o /path/to/output.json

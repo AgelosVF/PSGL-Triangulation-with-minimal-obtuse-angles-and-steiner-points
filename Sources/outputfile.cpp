@@ -3,7 +3,6 @@
 #include "../Header Files/triangulation_utils.hpp"
 #include "../Header Files//CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
 
-
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include<CGAL/Kernel/global_functions_2.h>
 #include <CGAL/enum.h>
@@ -51,35 +50,23 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
 	    point_index_map[p] = index++;
 	    steiner_points.push_back(p);
 	    }
-	else{
-	    // should check again
-	    //std::cout<<"Skipped: ("<<p.x()<<", "<<p.y()<<"\n";
-	}
     }
 
-    //for(auto it = point_index_map.cbegin(); it != point_index_map.cend(); ++it)
-    //{
-	//std::cout << it->first.x()<<" , "<<it->first.y()<< " " << it->second <<"\n";
-    //}
 
     // Collect edges
     std::vector<std::pair<int, int>> edges;
     for (auto eit = cdel_tri.finite_edges_begin(); eit != cdel_tri.finite_edges_end(); ++eit) {
 	auto segment = cdel_tri.segment(*eit);
 	int source_index = point_index_map[segment.source()];
-	//std::cout<<"Source: "<<segment.source()<<" "<<source_index<<"\t";
 	int target_index = point_index_map[segment.target()];
 
-	//std::cout<<"Target: "<<segment.target()<<" "<<target_index<<"\n";
 	auto midpoint = CGAL::midpoint(segment.source(), segment.target());
 	if ((region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDED_SIDE) || (region_polygon.bounded_side(midpoint) == CGAL::ON_BOUNDARY)) {
 	    edges.emplace_back(source_index, target_index);
 	}
 	else{
-	    //std::cout<<"skipped\n";
 	}
     }
-    CGAL::draw(cdel_tri);
 
     // Create the JSON structure
     boost::property_tree::ptree root;

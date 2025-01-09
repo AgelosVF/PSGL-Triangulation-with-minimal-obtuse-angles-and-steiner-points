@@ -46,7 +46,7 @@ bool is_flip_valid(const CDT& cdel_tri, Face_handle f, Face_handle neighbor, int
 bool try_edge_flip(Custom_CDT& cdel_tri, Face_handle f, int edge_index, boost::associative_property_map<std::unordered_map<Face_handle, bool>>& in_domain);
 //goes over all the obtuse triangles in the domain of the cdt and calls try_edge_flip for every of the non constrained edges of them to reduce the number
 void reduce_obtuse_by_flips(Custom_CDT& cdel_tri,  boost::associative_property_map<std::unordered_map<Face_handle, bool>>& in_domain);
-
+//used for debugging
 void print_point(const Point& point);
 //find the face that is made from the three points in the ccdt
 Face_handle find_face(Custom_CDT& ccdt,Point p1, Point p2, Point p3);
@@ -115,7 +115,9 @@ void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, do
 
 //In Previous_Project
 int previous_triangulation(Custom_CDT& cdel_tri,const Polygon_2& region_polygon);
-
 bool face_still_exists(Custom_CDT cdt,Face_handle face);
+
 void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points);
+
+void random_and_flips(Custom_CDT& cdt, Face_handle face, boost::associative_property_map<std::unordered_map<Face_handle, bool>>& in_domain);
 #endif // TRIANGULATION_UTILS_HPP

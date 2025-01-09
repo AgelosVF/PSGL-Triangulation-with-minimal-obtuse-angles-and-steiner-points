@@ -32,9 +32,7 @@ bool non_convex_parrallel(Polygon_2 boundary){
 		
 		Point p= e.start();
 		Point p2=e.end();
-		//std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
 		if(p.x()!=p2.x() && p.y() != p2.y()){
-			std::cout<<"Start: "<<p<<" End: "<<p2<<std::endl;
 			return false;
 		}
 	}
@@ -48,19 +46,13 @@ bool hasCycleDFS(int node, int parent, std::unordered_map<int, std::vector<int>>
 	visited.insert(node);
 	path.push_back(node);
 	for(unsigned int i=0;i<path.size();i++){
-	//	std::cout<<path[i]<<" -> ";
 	}
-	//std::cout<<std::endl;
 	//loop throught the neighbors
 	for (int neighbor : graph[node]) {
-	//	std::cout<<"\t"<<neighbor<<" "<<parent;
 		if (neighbor == parent) {
-	//		std::cout<<" skip\n";
 			continue; // Skip the parent
 		 }
-	//	std::cout<<"\n";
 		if (visited.count(neighbor)) {
-	//		std::cout<<"\tFound circle\n";
 			// Cycle detected - check if it includes the target edge
 			auto it = std::find(path.begin(), path.end(), neighbor);
 			if (it != path.end()) {
@@ -81,7 +73,6 @@ bool hasCycleDFS(int node, int parent, std::unordered_map<int, std::vector<int>>
 			return true;
 		}
 	}
-	//std::cout<<"\t Pop\n";
 	path.pop_back();
 	return false;
 }
@@ -109,7 +100,6 @@ bool convex_cycle_constrains(const std::vector<int>& region_boundary, const std:
 		std::unordered_set<int> visited;
 		std::vector<int> path; // To track the current DFS path
 		cycle.clear(); // Clear the cycle vector before starting DFS
-	//	std::cout<<"!!!: "<<u<<std::endl;
 		if (hasCycleDFS(u, -1, graph, visited, path, cycle, constraint)) {
 			return true; // Cycle detected
 		}
