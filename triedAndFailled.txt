@@ -1,0 +1,161 @@
+
+//----------------------------------------Insert random point around centroid and see if after optimal flips the count gets reduced---------------------//
+int random_and_flips(Custom_CDT& cdt, Face_handle face, Polygon_2 region){
+    int og_count=count_obtuse_faces(cdt,region);
+    Point random;
+    int flag=0;
+    int steiners_added=0;
+    for(int i=0;i<400;i++){
+	Custom_CDT cdt_copy(cdt);
+
+	random=random_point_in_face_gaussian(face);
+	Face_handle face_copy=find_face(cdt_copy,face);
+	Vertex_handle v_copy=cdt_copy.insert_no_flip(random,face_copy);
+	std::unordered_map<Face_handle, bool> in_domain_map_copy;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
+	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain_copy);
+	reduce_obtuse_by_flips(cdt_copy,in_domain_copy);
+	int new_count=count_obtuse_faces(cdt_copy,in_domain_copy);
+	if(new_count<=og_count){
+	    flag=1;
+	    break;
+	}
+    }
+    if(flag==1){
+	Vertex_handle v=cdt.insert_no_flip(random,face);
+	std::unordered_map<Face_handle, bool> in_domain_map;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
+	CGAL::mark_domain_in_triangulation(cdt, in_domain);
+	reduce_obtuse_by_flips(cdt,in_domain);
+	steiners_added++;
+    }
+    return steiners_added;
+}
+
+//----------------------------------------Insert random point around centroid and force flips-------------------------------//
+
+Point random_point_in_face_gaussian(Face_handle face) {
+    // Calculate centroid of the face
+    Point p1 = face->vertex(0)->point();
+    Point p2 = face->vertex(1)->point();
+    Point p3 = face->vertex(2)->point();
+    // Calculate the centroid of the face
+    Point centroid=CGAL::centroid(p1,p2,p3);
+    double cent_x=(CGAL::to_double(centroid.x()));
+    double cent_y=(CGAL::to_double(centroid.y()));
+
+    // Create random number generator
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::normal_distribution<> dist_x(cent_x, 0.1);
+    std::normal_distribution<> dist_y(cent_y, 0.1);
+
+    // Generate random point using Gaussian distribution
+    double x = dist_x(gen);
+    double y = dist_y(gen);
+    Point random(x,y);
+    // Check if the point is inside the face
+    if (!point_inside_triangle(p1, p2, p3, centroid)) {
+        //if the point is not inside the face, try again
+        return random_point_in_face_gaussian(face);
+    } 
+
+    return Point(x, y);
+}
+
+bool flip_valid(const Point& v1, const Point& v2, const Point& v3, const Point& v4) {
+	Polygon_2 pol;
+	pol.push_back(v1);
+	pol.push_back(v3);
+	pol.push_back(v2);
+	pol.push_back(v4);
+
+	
+	//CGAL::draw(pol);
+	// Check if the quadrilateral is convex
+	return pol.is_convex();
+}
+
+bool try_flip(Custom_CDT& cdt, Vertex_handle other, Face_handle face, Polygon_2 region){
+    
+    int edge_index=face->index(other);
+    Face_handle neighbor=face->neighbor(edge_index);
+
+    
+    
+    if (!is_in_region_polygon(neighbor, region) || cdt.is_constrained({face, edge_index})){
+        return false;
+    }
+    Point v1 = face->vertex((edge_index + 1) % 3)->point();
+    Point v2 = face->vertex((edge_index + 2) % 3)->point();
+    Point v3 = neighbor->vertex(neighbor->index(face))->point();
+    Point v4 = face->vertex(edge_index)->point();
+
+  
+    if (!flip_valid(v1,v2,v3,v4)) {
+        return false;
+    }
+
+    cdt.flip(face, edge_index);                        
+    return true;
+}
+
+
+void random_and_flips(Custom_CDT& cdt, Face_handle face, Polygon_2 region){
+    Point random=random_point_in_face_gaussian(face);
+    std::cout<<"Random point="<<random.x()<<" , "<<random.y()<<std::endl;
+    Point p0=face->vertex(0)->point();
+    Point p1=face->vertex(1)->point();
+    Point p2=face->vertex(2)->point();
+    std::cout<<"p0="<<p0.x()<<" , "<<p0.y()<<std::endl;
+    std::cout<<"p1="<<p1.x()<<" , "<<p1.y()<<std::endl;
+    std::cout<<"p2="<<p2.x()<<" , "<<p2.y()<<std::endl;
+    Face_handle s_face=find_face(cdt,face);
+    Vertex_handle v=cdt.insert_no_flip(random,face);
+    std::cout<<"Obtuse faces after insertion pre-flips: "<<count_obtuse_faces(cdt,region)<<std::endl;
+
+    //CGAL::draw(cdt);
+    //flip the obtuse faces
+    Face_handle first_face=find_face(cdt,p0,p1,v->point());
+    if(is_obtuse_triangle(first_face)){
+        try_flip(cdt, v, first_face, region);
+    }
+
+    CGAL::draw(cdt);
+    Face_handle second_face=find_face(cdt,p0,p2,v->point());
+    if(is_obtuse_triangle(second_face)){
+        try_flip(cdt, v, second_face, region);
+    }
+    CGAL::draw(cdt);
+    Face_handle third_face=find_face(cdt,p1,p2,v->point());
+    if(is_obtuse_triangle(third_face)){
+        try_flip(cdt, v, third_face, region);
+    }
+
+    CGAL::draw(cdt);
+
+}
+
+	for(int i=0;i<10;i++){
+		for(Face_handle face: ccdt.finite_face_handles()){
+			if (is_in_region_polygon(face, region_polygon) && is_obtuse_triangle(face)) {
+				random_and_flips(ccdt,face, region_polygon);
+				CGAL::mark_domain_in_triangulation(ccdt, in_domain);
+				test_obtuse=count_obtuse_faces(ccdt,in_domain);
+
+				std::cout << "Pre random obtuse count:" << obtuse_count <<"\nPost random obtuse count: "<<test_obtuse<< std::endl;
+
+				steiner_count+=1;
+				break;
+			}
+		}
+		reduce_obtuse_by_flips(ccdt, in_domain);
+		obtuse_count = count_obtuse_faces(ccdt, in_domain);
+		steiner_count+=local_search(ccdt, region_polygon, 300, in_domain);
+		std::cout << "After random and local search obtuse count:" << obtuse_count <<"\nUsed "<<steiner_count<<" steiner points."<< std::endl;
+		if(obtuse_count==0){
+			break;
+		}
+	}
+
+//--------------------------------------------------------------------------------------------------------------------------//

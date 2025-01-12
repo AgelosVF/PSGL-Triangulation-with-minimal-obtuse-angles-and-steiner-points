@@ -14,6 +14,7 @@
 //custom
 #include "../Header Files/boost_utils.hpp"
 #include "../Header Files/triangulation_utils.hpp"
+#include "../Header Files/SteinerPoints.hpp"
 //boost libraries
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -47,33 +48,6 @@ double getRandomDouble() {
 
 	// Generate and return a random double in the range [0, 1)
 	return dis(gen);
-}
-// Function to check if a face is inside or on the boundary of the polygon
-bool is_in_region_polygon(Face_handle f, const Polygon_2& region_polygon) {
-	// Compute the centroid of the face
-	Point centroid = CGAL::centroid(
-	f->vertex(0)->point(), 
-	f->vertex(1)->point(), 
-	f->vertex(2)->point()
-	);
-
-	// Check if the centroid is inside or on the boundary of the polygon
-	return (region_polygon.bounded_side(centroid) == CGAL::ON_BOUNDED_SIDE || region_polygon.bounded_side(centroid) == CGAL::ON_BOUNDARY);
-}
-
-// Function to count obtuse triangles in the triangulation within the polygon
-int count_obtuse_faces(const Custom_CDT& cdel_tri, const Polygon_2& region_polygon) {
-	int obtuse_count = 0;
-
-	// Iterate over all finite faces in the triangulation
-	for (Face_handle f : cdel_tri.finite_face_handles()) {
-		// Check if the face is inside the polygon and is obtuse
-		if (is_in_region_polygon(f, region_polygon) && is_obtuse_triangle(f)) {
-		    obtuse_count++;
-		}
-	}
-
-return obtuse_count;
 }
 
 //-----------------------------------------------------------------------------------------------------------------------------------------//
@@ -361,140 +335,194 @@ int annealing_test_add_steiner_longest_edge(Custom_CDT& ccdt,Face_handle face, c
 
 	return test_obutse_count;
 }
+//------------------------------
+int annealing_simulate_circumcenter(const Custom_CDT& cdt,Face_handle face,const Polygon_2& region_boundary){
 
+	Custom_CDT cdt_copy(cdt);
+	Face_handle face_copy=find_face(cdt_copy,face);
 
+	std::unordered_map<Face_handle, bool> in_domain_map;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
+	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain);
 
-
-int annealing_test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary,int testORadd){
-
-	Point circ=steiner_circumcenter(ccdt,face);
-	int test_obtuse_count;
-	//check if the point is inside the boundary or we cant remove an edge. In that case we use the centroid.
+	Point circ=steiner_circumcenter(cdt_copy,face_copy);
 	if( region_boundary.bounded_side(circ)!=CGAL::ON_BOUNDED_SIDE && region_boundary.bounded_side(circ)!=CGAL::ON_BOUNDARY){
-		if(testORadd==1){
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
-			return test_obtuse_count;
-		}
-		
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 0);
-			return test_obtuse_count;
-	}
-	if(is_face_constrained(ccdt,face)){
-		if(testORadd==1){
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
-			return test_obtuse_count;
-		}
-		
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 0);
-			return test_obtuse_count;
+		int test_obtuse_count=annealing_test_add_steiner_centroid(cdt_copy, face_copy, region_boundary, 0);
+		return test_obtuse_count;
 	}
 
-	//oposite neighbor i shares edge i with face and the oposite vertex is i
-	int i=find_longest_edge_index(face);
-
-
-	Point obp0=face->vertex(i)->point();
-	Point cp1=face->vertex((i+1)%3)->point();
-	Point cp2=face->vertex((i+2)%3)->point();
+	//get the vertices of the face
+	Point p0=face->vertex(0)->point();
+	Point p1=face->vertex(1)->point();
+	Point p2=face->vertex(2)->point();
 	
-	Face_handle neighbor=face->neighbor(i);
+
+	//calculate the length of the edges
+	//
+	Kernel::FT length1 = CGAL::squared_distance(p0, p1);
+	Kernel::FT length2 = CGAL::squared_distance(p1, p2);
+	Kernel::FT length3 = CGAL::squared_distance(p2, p0);
+
+	//FInd the longest edge and the oposite vertex
+	Point le_start,le_end,obtuse_point;
+	if( (length1 > length2) && (length1>length3)){
+		le_start=p0;
+		le_end=p1;
+		obtuse_point=p2;
+	}
+	else if ((length2>length1)&& (length2>length3) ) {
+		le_start=p1;
+		le_end=p2;
+		obtuse_point=p0;
+	}
+	else if ((length3>length1) &&(length3>length2) ) {
+		le_start=p2;
+		le_end=p0;
+		obtuse_point=p1;
+	
+	}
+
+
+	Vertex_handle obtuse_vertex=cdt_copy.insert_no_flip(obtuse_point,face_copy);
+	Face_handle neighbor=face_copy->neighbor(face_copy->index(obtuse_vertex));
+	
+
 	Point n1=neighbor->vertex(0)->point();
 	Point n2=neighbor->vertex(1)->point();
 	Point n3=neighbor->vertex(2)->point();
-
-	Point nonShared=neighbor->vertex(neighbor->index(face))->point();
-	//check if the circ is inside he neighbor
 	if(!point_inside_triangle(n1, n2, n3, circ)){
-		if(testORadd==1){
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
-			return test_obtuse_count;
-		}
-		
-			test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 0);
-			return test_obtuse_count;
+		int test_obtuse_count=annealing_test_add_steiner_centroid(cdt_copy, face_copy, region_boundary, 0);
+		return test_obtuse_count;
 	}
-
-	//remove then add steiner then make constrain then return point then unconstrain
 	
-	ccdt.remove_no_flip( (ccdt.insert_no_flip(obp0)) );
-	ccdt.remove_no_flip( (ccdt.insert_no_flip(cp1)) );
-	ccdt.remove_no_flip( (ccdt.insert_no_flip(cp2)) );
+	//neighbor i has the same index as the opposite point
+	Point nonShared=neighbor->vertex(neighbor->index(face_copy))->point();
+	//check if the common edge is constrained
+	if(face_copy->is_constrained(face_copy->index(neighbor))){
+		int test_obtuse_count=annealing_test_add_steiner_centroid(cdt_copy, face_copy, region_boundary, 0);
+		return test_obtuse_count;
+	}
 
-	ccdt.insert_points_and_constraint_no_flip(obp0, circ);
-	ccdt.insert_no_flip(cp1);
-	ccdt.insert_no_flip(cp2);
-
-	//get the vertex handles of circ and the old obtuse
-	Vertex_handle vh0=ccdt.insert_no_flip(obp0);
-	Vertex_handle vhC=ccdt.insert_no_flip(circ);
 	
-	Face_handle face_p0c;
-	int edge_indx;
-	if(!(find_face(ccdt,vh0,vhC,edge_indx, face_p0c))){
-		std::cout<<"Couldnt locate vh1 vh3 face\n";
-		exit(-1);
-	}
-	ccdt.remove_constraint_no_flip(face_p0c,edge_indx);
+	Vertex_handle circ_vh=cdt_copy.insert_no_flip(circ,neighbor);
 
+	//make the obtutse point circ a constain to remove the edge in between
+	obtuse_vertex=cdt_copy.insert_no_flip(obtuse_point);
+	cdt_copy.insert_constraint_no_flip(circ_vh, obtuse_vertex);
+	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain);
 
-	if(testORadd==1){
-		return count_obtuse_faces(ccdt,region_boundary);
-	}
-	else{
-		
-		//we need to reset the cdt to its previous state remove the steiner force the old edges as constrains
-		ccdt.remove_no_flip(vhC);
-		Vertex_handle vh1=ccdt.insert_no_flip(cp1);
-		Vertex_handle vhn=ccdt.insert_no_flip(nonShared);
-		ccdt.insert_constraint_no_flip(vh1 , vhn );
-		Vertex_handle vh2=ccdt.insert_no_flip(cp2);
-		ccdt.insert_constraint_no_flip( vh2, vhn);
-		Vertex_handle vh0=ccdt.insert_no_flip(obp0);
+	//after remove the constrain without flipping
+	obtuse_vertex=cdt_copy.insert_no_flip(obtuse_point);
+	circ_vh=cdt_copy.insert_no_flip(circ,neighbor);
+	Face_handle temp_face;
+	int edge_index=-1;
+	cdt_copy.is_edge(obtuse_vertex, circ_vh, temp_face, edge_index);
+	cdt_copy.remove_constraint_no_flip(temp_face, edge_index);
 
-		ccdt.insert_constraint_no_flip(vh1, vh0);
-		ccdt.insert_constraint_no_flip(vh2, vh0);
+	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain);
 
-
-		Face_handle face01;
-		if(!find_face(ccdt,vh0,vh1,edge_indx, face01)){
-			std::cout<<"Couldnt locate vh1 vh0 face\n";
-			exit(-1);
-		}
-		ccdt.remove_constraint_no_flip(face01,edge_indx);
-		
-		Face_handle face02;
-		if(!find_face(ccdt,vh0,vh2,edge_indx, face02)){
-			std::cout<<"Couldnt locate vh0 vh2 face\n";
-			exit(-1);
-		}
-		ccdt.remove_constraint_no_flip(face02,edge_indx);
-
-		Face_handle face2n;
-		if(!find_face(ccdt,vhn,vh2,edge_indx, face2n)){
-			std::cout<<"Couldnt locate vhn vh2 face\n";
-			exit(-1);
-		}
-		ccdt.remove_constraint_no_flip(face2n,edge_indx);
-
-
-		Face_handle face1n;
-		if(!find_face(ccdt,vhn,vh1,edge_indx, face1n)){
-			std::cout<<"Couldnt locate vhn vh1 face\n";
-			exit(-1);
-		}
-		ccdt.remove_constraint_no_flip(face1n,edge_indx);
-
-
-
-		//std::cout<<"\n Circumcenter:Reset triangulation\n---------------------------------\n";
-		return count_obtuse_faces(ccdt,region_boundary);
-	}
+	int new_count=count_obtuse_faces(cdt_copy,region_boundary);
+	return new_count;
 }
 
+//add centroid of polygon latter
+int annealing_test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary,int testORadd){
 
-void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L){
+	int obtuse;
+	if(testORadd!=1){
+		obtuse=annealing_simulate_circumcenter(ccdt, face, region_boundary);
+		return obtuse;
+	}
+
+	Point circ=steiner_circumcenter(ccdt,face);
+	if( region_boundary.bounded_side(circ)!=CGAL::ON_BOUNDED_SIDE && region_boundary.bounded_side(circ)!=CGAL::ON_BOUNDARY){
+		int test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
+		return test_obtuse_count;
+	}
+
+	//get the vertices of the face
+	Point p0=face->vertex(0)->point();
+	Point p1=face->vertex(1)->point();
+	Point p2=face->vertex(2)->point();
+
+	//calculate the length of the edges
+	//
+	Kernel::FT length1 = CGAL::squared_distance(p0, p1);
+	Kernel::FT length2 = CGAL::squared_distance(p1, p2);
+	Kernel::FT length3 = CGAL::squared_distance(p2, p0);
+
+	//FInd the longest edge and the oposite vertex
+	Point le_start,le_end,obtuse_point;
+	if( (length1 > length2) && (length1>length3)){
+		le_start=p0;
+		le_end=p1;
+		obtuse_point=p2;
+	}
+	else if ((length2>length1)&& (length2>length3) ) {
+		le_start=p1;
+		le_end=p2;
+		obtuse_point=p0;
+	}
+	else if ((length3>length1) &&(length3>length2) ) {
+		le_start=p2;
+		le_end=p0;
+		obtuse_point=p1;
+	
+	}
+
+
+	Vertex_handle obtuse_vertex=ccdt.insert_no_flip(obtuse_point,face);
+	Face_handle neighbor=face->neighbor(face->index(obtuse_vertex));
+	
+
+	Point n1=neighbor->vertex(0)->point();
+	Point n2=neighbor->vertex(1)->point();
+	Point n3=neighbor->vertex(2)->point();
+	if(!point_inside_triangle(n1, n2, n3, circ)){
+		int test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
+		return test_obtuse_count;
+	}
+	
+	//neighbor i has the same index as the opposite point
+	Point nonShared=neighbor->vertex(neighbor->index(face))->point();
+	//check if the common edge is constrained
+	if(face->is_constrained(face->index(neighbor))){
+		int test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_boundary, 1);
+		return test_obtuse_count;
+	}
+
+	
+	Vertex_handle circ_vh=ccdt.insert_no_flip(circ,neighbor);
+
+	//make the obtutse point circ a constain to remove the edge in between
+	obtuse_vertex=ccdt.insert_no_flip(obtuse_point);
+	ccdt.insert_constraint_no_flip(circ_vh, obtuse_vertex);
+
+	//after remove the constrain without flipping
+	obtuse_vertex=ccdt.insert_no_flip(obtuse_point);
+	circ_vh=ccdt.insert_no_flip(circ,neighbor);
+	Face_handle temp_face;
+	int edge_index=-1;
+	ccdt.is_edge(obtuse_vertex, circ_vh, temp_face, edge_index);
+	ccdt.remove_constraint_no_flip(temp_face, edge_index);
+
+
+	int new_count=count_obtuse_faces(ccdt,region_boundary);
+	return new_count;
+
+}
+//------------------------------
+
+
+
+
+int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate){
 	int current_steiner=steiner_count;
 	int current_obtuse=count_obtuse_faces(ccdt,in_domain);
+	int prev_obtuse=current_obtuse;
+	if(current_obtuse==0){
+		return steiner_count;
+	}
 	int best_steiner=current_steiner;
 
 	int test_obtuse=current_obtuse;
@@ -587,7 +615,12 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 						ccdt.clear();
 						ccdt=current_cdt;
 						Best_E=current_E;
-						best_steiner=current_steiner;
+						current_obtuse=count_obtuse_faces(ccdt,region_polygon);
+						if(best_steiner > 1) {  // Only calculate rate after first steiner point
+							c_rate += calculate_convergence_rate(best_steiner, prev_obtuse, current_obtuse);
+						}
+						prev_obtuse = current_obtuse;  // Update previous obtuse count
+						best_steiner = current_steiner;
 					}
 					break;
 				}
@@ -603,4 +636,5 @@ void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::assoc
 		<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
 		<<"\n\tMerged faces:"<<merged<<std::endl;
 
+	return best_steiner;
 }

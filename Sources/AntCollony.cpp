@@ -1,5 +1,6 @@
 #include "../Header Files/CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
 #include "../Header Files/triangulation_utils.hpp"
+#include "../Header Files/SteinerPoints.hpp"
 #include <CGAL/Exact_predicates_exact_constructions_kernel.h>
 #include <CGAL/Kernel/global_functions_3.h>
 #include <CGAL/enum.h>
@@ -87,14 +88,6 @@ void resolve_conflicts(std::vector<std::pair<double, int>>& energy_index_pairs, 
 }
 
 
-// Function to compute the distance between two points
-double compute_distance(const Point& p1, const Point p2) {
-    // Compute the squared distance
-    Kernel::FT sq_dist = CGAL::squared_distance(p1, p2);
-
-    // Return the square root of the squared distance for the actual distance
-    return std::sqrt(CGAL::to_double(sq_dist));
-}
 
 //---------------------------------------------------------------------------------------------------------//
 //--Heuristic Functions---//
@@ -108,8 +101,13 @@ double calculate_r(const Face_handle& Face){
 
 	double R=compute_distance(p0,circumcenter);
 
-	int l_side_i=find_longest_edge_index(Face);
+	int l_side_i=find_obtuse_vertex_index(Face);
 	Point obtuse_vert=Face->vertex(l_side_i)->point();
+	//-----------------------------------
+	
+	
+	
+	//-----------------------------------
 	Kernel::Line_2 longest_edge(Face->vertex((l_side_i+1)%3)->point(),Face->vertex((l_side_i+2)%3)->point());
 	Point projection=longest_edge.projection(obtuse_vert);
 	double hfle=compute_distance(projection, obtuse_vert);
@@ -250,60 +248,84 @@ Face_handle ant_projection(Custom_CDT& cdt, Face_handle F, Polygon_2 region){
 }
 
 
-Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle face, const Polygon_2& boundary){
+Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle& face, const Polygon_2& boundary){
 
-	// Get the vertices of the face
-	int i=find_longest_edge_index(face);
-	Point obP0=face->vertex(i)->point();
-	Point sP1=face->vertex((i+1)%3)->point();
-	Point sP2=face->vertex((i+2)%3)->point();
+	int obtuse;
 
-	// Calculate the circumcenter of the triangle formed by p0, p1, and p2
-	Point circumcenter = CGAL::circumcenter(obP0, sP1, sP2);
-	if(boundary.bounded_side(circumcenter)==CGAL::ON_UNBOUNDED_SIDE){
+	Point circ=steiner_circumcenter(cdt,face);
+	if( boundary.bounded_side(circ)!=CGAL::ON_BOUNDED_SIDE && boundary.bounded_side(circ)!=CGAL::ON_BOUNDARY){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
 		return face;
 	}
-	if(is_face_constrained(cdt, face)){
+
+
+	//get the vertices of the face
+	Point p0=face->vertex(0)->point();
+	Point p1=face->vertex(1)->point();
+	Point p2=face->vertex(2)->point();
+
+	//calculate the length of the edges
+	//
+	Kernel::FT length1 = CGAL::squared_distance(p0, p1);
+	Kernel::FT length2 = CGAL::squared_distance(p1, p2);
+	Kernel::FT length3 = CGAL::squared_distance(p2, p0);
+
+	//FInd the longest edge and the oposite vertex
+	Point le_start,le_end,obtuse_point;
+	if( (length1 > length2) && (length1>length3)){
+		le_start=p0;
+		le_end=p1;
+		obtuse_point=p2;
+	}
+	else if ((length2>length1)&& (length2>length3) ) {
+		le_start=p1;
+		le_end=p2;
+		obtuse_point=p0;
+	}
+	else if ((length3>length1) &&(length3>length2) ) {
+		le_start=p2;
+		le_end=p0;
+		obtuse_point=p1;
+	
+	}
+
+
+	Vertex_handle obtuse_vertex=cdt.insert_no_flip(obtuse_point,face);
+	Face_handle neighbor=face->neighbor(face->index(obtuse_vertex));
+	
+
+	Point n1=neighbor->vertex(0)->point();
+	Point n2=neighbor->vertex(1)->point();
+	Point n3=neighbor->vertex(2)->point();
+	if(!point_inside_triangle(n1, n2, n3, circ)){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
 		return face;
 	}
 	
-
-	Face_handle neighbor=face->neighbor(i);
-	Point nonShared=neighbor->vertex((neighbor->index(face)))->point();
-	Point n0=neighbor->vertex(0)->point();
-	Point n1=neighbor->vertex(1)->point();
-	Point n2=neighbor->vertex(2)->point();
-
-	//point not in neighbor
-	if(!point_inside_triangle(n0,n1,n2,circumcenter)){
+	//neighbor i has the same index as the opposite point
+	Point nonShared=neighbor->vertex(neighbor->index(face))->point();
+	//check if the common edge is constrained
+	if(face->is_constrained(face->index(neighbor))){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
 		return face;
 	}
-	cdt.remove_no_flip( (cdt.insert_no_flip(obP0)) );
-	cdt.remove_no_flip( (cdt.insert_no_flip(sP1)) );
-	cdt.remove_no_flip( (cdt.insert_no_flip(sP2)) );
-
-	cdt.insert_points_and_constraint_no_flip(obP0, circumcenter);
-	cdt.insert_no_flip(sP1);
-	cdt.insert_no_flip(sP2);
-
-	Vertex_handle vh0=cdt.insert_no_flip(obP0);
-	Vertex_handle vhC=cdt.insert_no_flip(circumcenter);
-	Face_handle face_p0c;
-	int edge_indx;
-	if(!(find_face(cdt,vh0,vhC,edge_indx, face_p0c))){
-		std::cout<<"Couldnt locate vh1 vh3 face\n";
-		exit(-1);
-	}
-	cdt.remove_constraint_no_flip(face_p0c,edge_indx);
+	Vertex_handle circ_vh=cdt.insert_no_flip(circ,neighbor);
+	//make the obtuse point circ a constain to remove the edge in between
+	obtuse_vertex=cdt.insert_no_flip(obtuse_point);
+	cdt.insert_constraint_no_flip(circ_vh, obtuse_vertex);
+	//after remove the constrain without flipping
+	obtuse_vertex=cdt.insert_no_flip(obtuse_point);
+	circ_vh=cdt.insert_no_flip(circ,neighbor);
+	Face_handle temp_face;
+	int edge_index=-1;
+	cdt.is_edge(obtuse_vertex, circ_vh, temp_face, edge_index);
+	cdt.remove_constraint_no_flip(temp_face, edge_index);
 	return neighbor;
-
 };
+
 Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon){
 	int test_obtuse_count;
 	int index=-1;
@@ -513,8 +535,12 @@ double increase_pheromon(double t,double lambda, double ant_energy){
 }
 
 
-void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points) {
+int ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points,double& c_rate) {
 	int obt_count = count_obtuse_faces(cdt, boundary);
+	int prev_count=obt_count;
+	if(obt_count==0){
+		return steiner_points;
+	}
 	double best_Energy = alpha * obt_count + beta * steiner_points;
 
 	std::vector<double> pheromones(4, 0.5);
@@ -574,28 +600,51 @@ void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, 
 				case 0: {
 					ant_projection(cdt, apply_face, boundary);
 					proj_used++;
+					obt_count = count_obtuse_faces(cdt, boundary);
+					if(steiner_points + cycle_steiners_added > 1) {
+						c_rate += calculate_convergence_rate(steiner_points + cycle_steiners_added, prev_count, obt_count);
+					}
+					prev_count = obt_count;
+					cycle_steiners_added++;
 					break;
 				}
 				case 1: {
 					ant_longest_edge(cdt, apply_face, boundary);
 					longest_used++;
+					obt_count = count_obtuse_faces(cdt, boundary);
+					if(steiner_points + cycle_steiners_added > 1) {
+						c_rate += calculate_convergence_rate(steiner_points + cycle_steiners_added, prev_count, obt_count);
+					}
+					prev_count = obt_count;
+					cycle_steiners_added++;
 					break;
 				}
 				case 2: {
 					ant_circumcenter(cdt, apply_face, boundary);
 					circum_used++;
+					obt_count = count_obtuse_faces(cdt, boundary);
+					if(steiner_points + cycle_steiners_added > 1) {
+						c_rate += calculate_convergence_rate(steiner_points + cycle_steiners_added, prev_count, obt_count);
+					}
+					prev_count = obt_count;
+					cycle_steiners_added++;
 					break;
 				}
 				case 3: {
 					ant_merge(cdt, apply_face, boundary);
 					merge_used++;
+					obt_count = count_obtuse_faces(cdt, boundary);
+					if(steiner_points + cycle_steiners_added > 1) {
+						c_rate += calculate_convergence_rate(steiner_points + cycle_steiners_added, prev_count, obt_count);
+					}
+					prev_count = obt_count;
+					cycle_steiners_added++;
 					break;
 				}
 				default:
 					std::cerr << "Error: chose invalid method\n";
 					exit(-1);
 				}
-				cycle_steiners_added++;
 
 				if (current_ant_energy == 0) {
 					obt_count = count_obtuse_faces(cdt, boundary);
@@ -608,7 +657,7 @@ void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, 
 					<< "\n\tCircumcenter:" << circum_used 
 					<< "\n\tLongest edge:" << longest_used 
 					<< "\n\tProjections:" << proj_used << std::endl;
-					return;
+					return steiner_points;
 				}
 
 				pheromones[ant_method[current_ant_index]] = 
@@ -620,6 +669,7 @@ void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, 
 		}
 
 		if (cycle_steiners_added) {
+
 			obt_count = count_obtuse_faces(cdt, boundary);
 			steiner_points += cycle_steiners_added;
 			best_Energy = obt_count * alpha + steiner_points * beta;
@@ -630,5 +680,6 @@ void ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, 
 		<< "\n\tCircumcenter:" << circum_used 
 		<< "\n\tLongest edge:" << longest_used 
 		<< "\n\tProjections:" << proj_used << std::endl;
+	return steiner_points;
 }
 

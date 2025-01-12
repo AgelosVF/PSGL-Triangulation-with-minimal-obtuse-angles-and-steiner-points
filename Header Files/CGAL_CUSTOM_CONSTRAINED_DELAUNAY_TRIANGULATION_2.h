@@ -2,6 +2,8 @@
 #define CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2_H
 
 #include <CGAL/Constrained_Delaunay_triangulation_2.h>
+#include <CGAL/Constrained_triangulation_plus_2.h>
+#include <CGAL/Constrained_triangulation_2.h>
 
 template <class Gt,class Tds=CGAL::Default,class Itag=CGAL::Default>
 class Custom_Constrained_Delaunay_triangulation_2

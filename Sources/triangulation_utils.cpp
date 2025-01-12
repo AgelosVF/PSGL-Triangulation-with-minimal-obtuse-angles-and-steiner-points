@@ -13,6 +13,7 @@
 #include <CGAL/Constrained_triangulation_face_base_2.h>
 #include <CGAL/Triangulation_data_structure_2.h>
 //other libs
+#include <cmath>
 #include <iostream>
 #include <cstddef>
 #include <iostream>
@@ -21,7 +22,103 @@
 #include <unordered_map>
 #include <CGAL/polygon_function_objects.h>
 #include <CGAL/Polygon_2.h>
-//#include <CGAL/draw_polygon_2.h>
+#include <CGAL/draw_polygon_2.h>
+
+int find_obtuse_vertex_index(const Face_handle& Face){
+
+	Point p0=Face->vertex(0)->point();
+	Point p1=Face->vertex(1)->point();
+	Point p2=Face->vertex(2)->point();
+
+	Kernel::FT length1 = CGAL::squared_distance(p0, p1);
+	Kernel::FT length2 = CGAL::squared_distance(p1, p2);
+	Kernel::FT length3 = CGAL::squared_distance(p2, p0);
+	//FInd the longest edge and the oposite vertex
+	if( (length1 > length2) && (length1>length3)){
+		return 2;
+
+	}
+	else if ((length2>length1)&& (length2>length3) ) {
+		return 0;
+	}
+	else if ((length3>length1) &&(length3>length2) ) {
+		return 1;
+	}
+	else
+		std::cerr<<"Got isosceles face\n";
+		exit(-1);
+
+}
+double calculate_convergence_rate(int steiner_points, int prev_obtuse, int current_obtuse){
+//we calculate p(n-1)	
+	if(steiner_points==0 ||prev_obtuse==0){
+		std::cerr<<"Called convergence rate with "<<steiner_points<<" steiner points, "<<prev_obtuse<<" previous obtuse count and "<<current_obtuse<<" current obtuse"<<"\n";
+		exit(-1);
+	}
+	if(current_obtuse==0){
+		return 0;
+	}
+	double rate = log((double)current_obtuse/prev_obtuse) / log((double)steiner_points/(steiner_points-1));
+	std::cout<<"Steiner points: "<<steiner_points<<"\tPrev_count: "<<prev_obtuse<<"\tCurrent count: "<<current_obtuse<< "\nRate: "<<rate<<std::endl;
+	return  rate;
+}
+bool face_still_exists(Custom_CDT cdt,Face_handle face){
+	
+	Point p0 = face->vertex(0)->point();
+	Point p1 = face->vertex(1)->point();
+	Point p2 = face->vertex(2)->point();
+	Point centroid= CGAL::centroid(p0,p1,p2);
+	Face_handle n_face = cdt.locate(centroid);
+	if( n_face == nullptr){
+		return false;
+	}
+	Point np0=n_face->vertex(0)->point();
+	Point np1=n_face->vertex(1)->point();
+	Point np2=n_face->vertex(2)->point();
+
+	std::set<Point> og_points={p0,p1,p2};
+	std::set<Point> new_points={np0,np1,np2};
+
+	return og_points==new_points;
+}
+
+// Function to check if a face is inside or on the boundary of the polygon
+bool is_in_region_polygon(Face_handle f, const Polygon_2& region_polygon) {
+	// Compute the centroid of the face
+	Point centroid = CGAL::centroid(
+	f->vertex(0)->point(), 
+	f->vertex(1)->point(), 
+	f->vertex(2)->point()
+	);
+
+	// Check if the centroid is inside or on the boundary of the polygon
+	return (region_polygon.bounded_side(centroid) == CGAL::ON_BOUNDED_SIDE || region_polygon.bounded_side(centroid) == CGAL::ON_BOUNDARY);
+}
+
+// Function to count obtuse triangles in the triangulation within the polygon
+int count_obtuse_faces(const Custom_CDT& cdel_tri, const Polygon_2& region_polygon) {
+	int obtuse_count = 0;
+
+	// Iterate over all finite faces in the triangulation
+	for (Face_handle f : cdel_tri.finite_face_handles()) {
+		// Check if the face is inside the polygon and is obtuse
+		if (is_in_region_polygon(f, region_polygon) && is_obtuse_triangle(f)) {
+		    obtuse_count++;
+		}
+	}
+
+return obtuse_count;
+}
+
+// Function to compute the distance between two points
+double compute_distance(const Point& p1, const Point p2) {
+    // Compute the squared distance
+    Kernel::FT sq_dist = CGAL::squared_distance(p1, p2);
+
+    // Return the square root of the squared distance for the actual distance
+    return std::sqrt(CGAL::to_double(sq_dist));
+}
+
 
 //get the face handle of the same face in a diffrent ccdt
 Face_handle find_face(Custom_CDT& n_ccdt, Face_handle o_face){
@@ -132,7 +229,6 @@ bool is_flip_valid(const Point& v1, const Point& v2, const Point& v3, const Poin
 	pol.push_back(v4);
 
 	
-	//CGAL::draw(pol);
 	// Check if the quadrilateral is convex
 	return pol.is_convex();
 }
@@ -265,6 +361,44 @@ int count_obtuse_faces(const Custom_CDT& cdel_tri, const boost::associative_prop
 }
 
 
+void print_polygon_vertices(const Polygon_2& polygon) {
+	if (polygon.is_empty()) {
+		std::cout << "Polygon is empty." << std::endl;
+		return;
+	}
+
+	std::cout << "Polygon vertices:" << std::endl;
+	for (const auto& vertex : polygon.vertices()) {
+		std::cout << "(" << vertex.x() << ", " << vertex.y() << ")" << std::endl;
+	}
+	draw(polygon);
+}
+bool point_inside_triangle(Point p1, Point p2, Point p3,Point query){
+
+	Polygon_2 triangle;
+	triangle.push_back(p1);
+
+	triangle.push_back(p2);
+	triangle.push_back(p3);
+	if(triangle.bounded_side(query)==CGAL::ON_BOUNDED_SIDE || triangle.bounded_side(query)==CGAL::ON_BOUNDARY){
+		return true;
+	}
+	return false;
+
+}
+// Function to check if an edge flip is valid by testing if the quadrilateral is convex
+bool is_polygon_convex(const Point& v1, const Point& v2, const Point& v3, const Point& v4) {
+	Polygon_2 pol;
+	pol.push_back(v1);
+	pol.push_back(v3);
+	pol.push_back(v2);
+	pol.push_back(v4);
+
+	
+	
+	// Check if the quadrilateral is convex
+	return pol.is_convex();
+}
 
 bool is_obtuse_triangle(const typename CDT::Face_handle& f) {
 
@@ -285,3 +419,29 @@ bool is_obtuse_triangle(const typename CDT::Face_handle& f) {
 
 
 
+
+
+int find_longest_edge_index(Face_handle face){
+	// Get the three vertices of the triangle
+	Point p1 = face->vertex(0)->point();
+	Point p2 = face->vertex(1)->point();
+	Point p3 = face->vertex(2)->point();
+	// Calculate the squared lengths of the triangle's sides
+
+	Kernel::FT side1 = CGAL::squared_distance(p1, p2);
+	Kernel::FT side2 = CGAL::squared_distance(p2, p3);
+	Kernel::FT side3 = CGAL::squared_distance(p3, p1);
+	// Determine the longest edge and calculate its midpoint
+	Point midpoint;
+	if( (side1>side2) && (side1>side3) )
+		return 0;
+	else if ( (side2>side1) && (side2>side3))
+		return 1;
+	else if ( (side3>side1) && (side3>side2))
+		return 2;
+	else
+		std::cerr<<"Could determine longest edge between: "<<side1<<" "<<side2<<" "<<side3<<std::endl;
+
+	return -1;
+
+}

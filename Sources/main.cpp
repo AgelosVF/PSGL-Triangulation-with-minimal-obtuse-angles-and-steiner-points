@@ -13,6 +13,7 @@
 #include "../Header Files/triangulation_utils.hpp"
 #include "../Header Files/CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h"
 #include "../Header Files/BoundaryType.hpp"
+#include "../Header Files/random.hpp"
 //boost libraries
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -78,6 +79,8 @@ int main(int argc, char* argv[]) {
 	int steiner_count = 0;
 	std::string method;
 	boost::property_tree::ptree parameters;
+	double c_rate=0;
+	double final_rate=0;
 
 	if (!params.preselect) {
 		method = extract_method(params.pt);
@@ -91,25 +94,63 @@ int main(int argc, char* argv[]) {
 		if (method == "local") {
 			int L;
 			extract_local_parameters(parameters, L);
-			steiner_count += local_search(ccdt, region_polygon, 5000, in_domain);
+			steiner_count += local_search(ccdt, region_polygon, 5000, in_domain,c_rate);
 		}
 		else if (method == "SA") {
 			double alpha, beta;
 			int L;
 			extract_sa_parameters(parameters, alpha, beta, L);
-			simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, alpha, beta, L);
+			simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, alpha, beta, L,c_rate);
 		}
 		else if (method == "ant") {
 			double alpha, beta, xi, psi, lambda;
 			int kappa, L;
 			extract_ant_parameters(parameters, alpha, beta, xi, psi, lambda, kappa, L);
-			ant_colony(ccdt, region_polygon, alpha, beta, xi, psi, lambda, kappa, L, 0);
+			ant_colony(ccdt, region_polygon, alpha, beta, xi, psi, lambda, kappa, L, 0, c_rate);
 		}
 	}
 	else{
 		std::vector<int> closed_p;
 		Polygon_2 Pcycle;
 		int type = boundary_type(region_polygon, region_boundary, additional_constrains, closed_p);
+	
+		steiner_count=ant_colony(ccdt, region_polygon, 4.0, 0.01, 1.0, 3.0, 0.2, 3, 1000, 0,c_rate);       
+		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
+		std::vector<Face_handle> obtuse_faces;
+		for(Face_handle f : ccdt.finite_face_handles()) {
+			if(get(in_domain,f) && is_obtuse_triangle(f)) {
+				obtuse_faces.push_back(f);
+			}
+		}
+
+		CGAL::draw(ccdt,in_domain);
+		// Process first quarter of obtuse faces, rounding up
+		size_t quarter_size = (obtuse_faces.size() + 3) / 4;  // This rounds up division
+		for(size_t i = 0; i < quarter_size; i++) {
+			if(random_point_on_edge(ccdt, obtuse_faces[i]))
+				steiner_count++;
+		}
+
+		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
+		CGAL::draw(ccdt,in_domain);
+		reduce_obtuse_by_flips(ccdt, in_domain);
+		int after=count_obtuse_faces(ccdt,in_domain);
+		std::cout<<"After random projections i have: "<<after<<"obtuse faces from "<<obtuse_count<<std::endl;
+		CGAL::draw(ccdt,in_domain);
+
+		/*
+		 *
+		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
+		obtuse_count = count_obtuse_faces(ccdt, in_domain);
+		steiner_count+=local_search(ccdt, region_polygon, 1000, in_domain, c_rate);
+
+		steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate);
+		steiner_count=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate);
+		steiner_count=ant_colony(ccdt, region_polygon, 4.0, 0.01, 1.0, 3.0, 0.2, 3, 1000, 0,c_rate);       
+		
+		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
+		obtuse_count = count_obtuse_faces(ccdt, in_domain);
+		ant_colony(ccdt, region_polygon, 4.0, 0.01, 1.0, 3.0, 0.2, 3, 1000, 0,c_rate);
 		if (closed_p.size() > 2) {
 			for (unsigned int i = 0; i < closed_p.size(); i++) {
 				std::cout << closed_p[i] << "->";
@@ -119,43 +160,30 @@ int main(int argc, char* argv[]) {
 		}
 		std::cout << std::endl;
 		steiner_count+=local_search(ccdt, region_polygon, 300, in_domain);
+	
+	*/
 		//ant_colony(ccdt, region_polygon, 4.0, 0.01, 1.0, 3.0, 0.2, 4, 1000, 0);
 	}
 
 	CGAL::mark_domain_in_triangulation(ccdt, in_domain);
-
 	reduce_obtuse_by_flips(ccdt, in_domain);
-	CGAL::mark_domain_in_triangulation(ccdt, in_domain);
 	obtuse_count = count_obtuse_faces(ccdt, in_domain);
+		
+	final_rate = (steiner_count > 0) ? abs(c_rate/steiner_count) : 0.0;
+
+	std::cout<<"Convergence rate: "<<final_rate<<" Acumilated rate: "<<c_rate<<std::endl;
 	std::cout << "Final obtuse count:" << obtuse_count <<"\nUsed "<<steiner_count<<" steiner points."<< std::endl;
 	//---------------------------------------
 	CGAL::draw(ccdt,in_domain);
-	int test_obtuse=0;
-	for(Face_handle face: ccdt.finite_face_handles()){
-		if (is_in_region_polygon(face, region_polygon) && is_obtuse_triangle(face)) {
-			random_and_flips(ccdt,face,in_domain);
-			CGAL::mark_domain_in_triangulation(ccdt, in_domain);
-			test_obtuse=count_obtuse_faces(ccdt,in_domain);
-
-			std::cout << "Pre random obtuse count:" << obtuse_count <<"\nPost random obtuse count: "<<test_obtuse<< std::endl;
-
-			break;
-		}
-	}
-	
-	obtuse_count = count_obtuse_faces(ccdt, in_domain);
-	CGAL::draw(ccdt,in_domain);
-
-
-
 
 	//--------------------------------------
 	std::vector<Point> initial_points;
+				steiner_count+=1;
 	for (size_t i = 0; i < points_x.size(); ++i) {
 		initial_points.emplace_back(points_x[i], points_y[i]);
 	}
 	
-	generate_output_json(ccdt, inst_iud, initial_points, region_polygon, params.output_file, method, parameters, obtuse_count);
+	generate_output_json(ccdt, inst_iud, initial_points, region_polygon, params.output_file, method, parameters, obtuse_count,final_rate);
 	return 0;
 }
 

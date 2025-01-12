@@ -58,38 +58,19 @@ Face_handle find_face(Custom_CDT& n_ccdt, Face_handle o_face);
 Vertex_handle find_vertex_by_point(const Custom_CDT& ccdt, const Point& point);
 //returns yes if any of the vertices of the face is a part of a constrain edge
 bool is_face_constrained(const Custom_CDT& ccdt, Face_handle face);
-//---------------------------------------------------------------------------------------------------------//
-//In SteinerPoints.cpp
-bool point_inside_triangle(Point p1, Point p2, Point p3,Point query);
 
-int find_longest_edge_index(Face_handle face);
-//Returns the point located at the midpoint of the longest edge of a given face
-Point steiner_longest_edge(Custom_CDT& cdel_tri, Face_handle face);
-//testORass=1 add steiner on the midpoint of the longest edge if it reduces the obtuse count. testORadd!=1 return the number of obtuse triangles if the steiner would be added
-int test_add_steiner_longest_edge(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,int testORadd);
+bool is_in_region_polygon(Face_handle f, const Polygon_2& region_polygon);
 
-//Returns the point located at the centroid of the face
-Point steiner_centroid(Custom_CDT& cdel_tri, Face_handle face);
-//testORass=1 add steiner on the centroid if it reduces the obtuse count. testORadd!=1 return the number of obtuse triangles if the steiner would be added
-int test_add_steiner_centroid(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,int testORadd);
-
-//Returns the point that is located at the projection of the obtuse angle on the oposite edge
-Point steiner_projection(Custom_CDT& cdt, Face_handle F);
-//testORass=1 add steiner on the projection of the obtuse angle if it reduces the obtuse count. testORadd!=1 return the number of obtuse triangles if the steiner would be added
-int test_add_steiner_projection(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,int testORadd);
-
-//Returns the point that is located at the circumcenter of the face
-Point steiner_circumcenter(Custom_CDT& cdel_tri, Face_handle face);
-
-//Returns the obtuse count after adding a a steiner and merging neighbor faces if possible.Simulation
-//if testORadd !=1 calls test_merge_steiner else it performs the merge.
-int test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, const Polygon_2 & region_boundary, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,int testORadd);
-
-int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge);
-int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int& indx,int testORadd);
-
+bool face_still_exists(Custom_CDT cdt,Face_handle face);
 
 bool is_polygon_convex(const Point& v1, const Point& v2, const Point& v3, const Point& v4) ;
+
+bool point_inside_triangle(Point p1, Point p2, Point p3,Point query);
+
+double calculate_convergence_rate(int steiner_points, int prev_obtuse, int current_obtuse);
+//In local search
+double compute_distance(const Point& p1, const Point p2) ;
+void print_polygon_vertices(const Polygon_2& polygon);
 //------------------------------------------------------------------------------------------------------------//
 //In output.cpp
 //creates the output json file
@@ -101,23 +82,15 @@ void generate_output_json(
     std::string write_file, 
     const std::string& method, 
     const boost::property_tree::ptree& parameters, 
-    int obtuse_count
+    int obtuse_count,
+    double final_rate
+
 );
 //-----------------------------------------------------------------------------------------------------------//
-//In local search
-int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain);
-//In simmulate annealing
-//
-bool is_in_region_polygon(Face_handle f, const Polygon_2& region_polygon);
-void simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L);
-
-void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points);
-
+int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,double& c_rate);
+int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate);
+int ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points, double& c_rate);
 //In Previous_Project
 int previous_triangulation(Custom_CDT& cdel_tri,const Polygon_2& region_polygon);
-bool face_still_exists(Custom_CDT cdt,Face_handle face);
-
-void ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points);
-
-void random_and_flips(Custom_CDT& cdt, Face_handle face, boost::associative_property_map<std::unordered_map<Face_handle, bool>>& in_domain);
+int find_obtuse_vertex_index(const Face_handle& Face);
 #endif // TRIANGULATION_UTILS_HPP

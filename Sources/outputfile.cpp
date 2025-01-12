@@ -31,7 +31,7 @@ std::string rational_to_string(const Kernel::FT& coord) {
 // Function to generate the output JSON file
 
 // Function to generate the output JSON file
-void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std::string>& inst_iud, const std::vector<Point>& initial_points, Polygon_2 region_polygon, std::string write_file, const std::string& method, const boost::property_tree::ptree& parameters,int obtuse_count) {
+void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std::string>& inst_iud, const std::vector<Point>& initial_points, Polygon_2 region_polygon, std::string write_file, const std::string& method, const boost::property_tree::ptree& parameters,int obtuse_count, double final_rate) {
 
     // Map to store indices for all points (initial + Steiner)
     std::map<Point, int> point_index_map;
@@ -78,6 +78,7 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
     root.add_child("parameters", parameters);
 
     root.put("obtuse_count", obtuse_count); // Add the obtuse triangle count
+    root.put("convergence_rate", final_rate);  // Add the convergence rate
 
     boost::property_tree::ptree steiner_points_x;
     boost::property_tree::ptree steiner_points_y;
