@@ -7,41 +7,62 @@ Files and Directories:
 │   ├── boost_utils.hpp		<-- Functions used to read from json file	
 │   ├── CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h <--Custom cdt class used.Added more methods to avoid
 │   │								flips.
+│   ├── BoundaryType.hpp	<-- contains function that are used for recognizing the type of triangulation
+│   ├── SteinerPoints.hpp	<-- contains the functions that are used across methods for inserting steiner
+│   │					points centroid/circumcenter/projection/merge/longest_edge
+│   ├── random.hpp	<-- contains functions that use randomness to insert steiner points to the triangulation
 │   └── triangulation_utils.hpp		<--Functions rest of functions used between the files
 ├── make		<-- Inside there is the CMakeLists.txt
-│   └── CMakeLists.txt
-│   └── Make_And_Libs   <-- Empty directory where you can run cmake .. to compile
+│   ├── CMakeLists.txt
+│   └── Lib   <-- Empty directory where you can run cmake .. to compile
 └── Sources		<-- All the source code for the functions used.
     ├── boost_utils.cpp		<--Source code of functions used to read the json file.
-    ├── LocalSearch.cpp		<--Source code of the local search.
     ├── main.cpp		<--Source code of the main function.
     ├── outputfile.cpp		<--Source code of the function used to create the output.
-    ├── Previous_Project.cpp	<--Source code of the previous project. Used when delaunay=false
-    │			   	   to recreate the triangulation produced by the previous project.
-    ├── SimulatedAnnealing.cpp	<--Source code of the sumulated annealing.
     ├── SteinerPoints.cpp	<--Source code of the functions used to find and add steiner points.
     ├── triangulation_utils.cpp <--Source code of other helping functions.
+    ├── random.cpp		<--Source code of the functions that use randomness to insert steiner.
+    ├── BoundaryType.cpp	<--Source code of functions that recognize the category of problem.
+    ├── triangulation_utils.cpp <--Source code of other helping functions.
+    │			   	   to recreate the triangulation produced by the previous project.
+    ├── LocalSearch.cpp		<--Source code of the local search.
+    ├── SimulatedAnnealing.cpp	<--Source code of the sumulated annealing.
     └── AntCollony		<--Source code of the ant collony method.
 How to compile and run:
-	Inside the make directory there is the CMakeLists.txt. If you go to run cmake. inside and after
-	make the files will be compiled and in the build directory the executable Triangulation
-	will be created.
-	To run the program you call ./Triangulation -i /path/to/input.json -o /path/to/output.json
+	Inside the make directory there is the CMakeLists.txt and another directory called lib. If you go in the
+	lib directory and call cmake .. the makefile will be created in the same directory along with some other
+	files. After that you need to call make and the executable opt_triangulation will be created in the 
+	build directory.
+	To run the program you call "./opt_triangulation -i /path/to/input.json -o /path/to/output.json" and you
+	can use the flag -preselected_params in order for it to automaticaly choose the method and parameters.
 
+How reduce_random_local works:
+	  The reduce_random_local is a mix of local search with simulated annealing. It starts by creating a
+	 copy of the cdt and adds a steiner point on 1/4 of its obtuse faces followed by flips. The point is 
+	 added at the projection of a random point arround the centroid of the face on its longest edge.
+	  The first iteration of it used random points around the centroid but that was too volatile since
+	 a single point inside a face creates at least 2 new obtuse faces. So after testing i decided to
+	 project a single point on the longest edge. This way after the flips we usually have about the 
+	 same number of obtuse faces but they are new and some of the other methods may work now.
+	  After the new random steiners and flips we call a local search to try and reduce the obtuse faces.
+	 Then if the obtuse faces of the copy cdt are less than the original we make them the same. This will
+	 loop for a number of times until either we reached 0 obtuse faces or a certain number of loops.
 How LocalSearch works:
 	Local search goes through all the obtuse faces of triangulation and for each test each of the 5
-	methods to see how many obtuse faces would be after adding a steiner.
+	methods to see how many obtuse faces would be after adding a steiner. All methods use methods of
+	the parent class constrained_triangulation in order not to trigger any unwanted flips durring the
+	editing of the cdt.
 	The 5 methods are:
 		-steiner on the midpoint of the longest edge
 		-steiner on the projection of the obtuse angle
 		-steiner on the centroid
 		-steiner on the circumcenter:
-			To check the steiner on the circumcenter first the circumcenter needs to be inside
-			a neighbor. If it is and the face isnt constrained we remove it. Then we add the
-			steiner and the vertex of the old obtuse angle as a constrain. After we add back
-			the rest of the removed vertices and make constrains the edges on the boundary of
-			the polygon that the original face and neighbor had. Then we remove the the constrains
-			and count the obtuse faces. This way we make a local re triangulation.
+			First we check if the circumcenter of the face lands inside a neighbor. If it does then
+			we check if the common edge is constrained. If it isn't we add the steiner inside the 
+			neighbor and then we make the steiner-obtuse_vertex edge a constrain. This way the old
+			edge in between is removed and the edges we wanted are formed. After that we remove the
+			constrain. For all the adding and removing constrains we use the methods of the parent
+			class constrained_triangulation in order no to triger any unwanted delaunay flips.
 		-steiner on the centroid of merged obtuse neighbors:
 			For this steiner to be added we the face to have an obtuse neighbor, both of them to be
 			non constrained and the merged polygon to convex. If those conditions are met we start
@@ -69,19 +90,39 @@ How Simulated Annealing works:
 	cdt as the best.
 
 How Ant colony works:
-	  Also there is the improveTriangulationthat is called for each ant. improveTriangulation() chooses one
-	of the obtuse faces and a type of steiner at random. After it simulates adding the steiner to the 
-	triangulation and checks saves the energy that steiner would produce. After the face that was chosen
-	is returned and the energy and method that was used are stored in vectors given as arguments.
-	  The main function is the ant_colony. It start by creating some vectors to store the pheromones,
-	ant_energy, ant_method and calculating the starting energy. Then it starts looping for L. in each
-	loop a vector ant_faces is created to store the faces that each ant chose to edit. After there is
-	another loop for each ant. In that loop improvedTriangulation() is called to simulate what edits each
-	ant would do. The method, face and energy each ant chose are stored in the vectors. After that we
-	choose the ant that improved the energy the best (if it exists) its steiner is added to the cdt and
-	the pheromon of the method is updated. Then we keep choosing the next best (if it exists) and check
-	if the face it wants to edit still exists if it does the same thing happens. This way we can filter
-	conflicts by applying the best first.
+	 The main function of the ant colony is the ant_colony(). It starts bt creating vectors for the: 
+	pheromones,ant_energy and ant_method. After it starts the loop. In the loop for each ant we create
+	a a thread which calls ImproveTriangulation(). 
+	 In ImproveTriangulation() a random face among the obtuse is selected and a method. For the method we
+	use the heuristic functions and the pheromones vector to create a weighted random selection with each
+	method having p(k)= (t^xi * h^psi)/ Σ_{i} t^x_{i}h^ps_{i} chance. After the method is selected we 
+	create a copy of the cdt and use that method to insert a steiner in the random obtuse face we selected
+	before. Each method returns a pointer to the neighboring faces it also changed. Those neighboring faces
+	and face that were changed by the steiner insertion are returned as a vector pair {face,neighbor} and
+	are saved in a vector called ant_faces.Also the selected_method and energy are saved to the vectors to
+	which pointers to are passed as arguments.
+	 Back in ant_colony we wait for each thread to finish. Since each thread uses its own copy of the cdt
+	and only updates its own vectors we dont need to use a lock since we got no critical section. After 
+	each thread (ant) has finished we create a new vector in which we store each energy and its index.
+	In the vectors ant_energy, ant_method and ant_faces each ant has its own index for example the second
+	ant has its energy stored at ant_energy[1], the method it used at ant_method[1] and the faces it changed
+	at ant_faces[1].So after we create the energy-index pair vector we sort it by energy to know which 
+	ants to prioritize. After that we call the resolve_conflicts() function to filter the ants.
+	 The resolve_conflicts function takes the energy_index_pairs and ant_faces vectors as arguments.
+	Then starting from the first ant index in the energy_index_pairs (the one with the best energy) it goes
+	throught the other ants and if ant of the faces they changed were the same it changes their index in
+	the energy_index_pairs to -1 so they can be skipped. This none of the remaining ants have any common
+	changed face and when 2 or more had some common we kept the one with the better energy.
+	  After that back at the ant_colony() its time to apply the steiner points of the remaining ants.
+	We go throught the energy_index_pairs vector to get the indexes of the ants starting from the one
+	with the lower energy and skipping the ones whose index is -1. If the energy is better from the energy
+	of the previous cycle we apply the steiner. If the ants energy was 0 it means it reduced the obtuse 
+	faces to 0 se we terminate. After that we increase or reduce the methods pheromon if it was applied or
+	not. After going throught all the ants we update the current number of steiners and obtuse faces in the
+	cdt, update its energy and go back at the start of the loop. The loop goes L times.
+	 The functions for the steiner points used are almost identical to the ones used in simulated annealing.
+	The other functions are the heuristics for each method and the increase/decrease pheromones which were 
+	taken from the class notes.
 Testing results:
 	-Local search in most cases performed a bit worst than my previous project since it didnt allow edge
 	 flips and rarely removed all the obtuse triangles.
