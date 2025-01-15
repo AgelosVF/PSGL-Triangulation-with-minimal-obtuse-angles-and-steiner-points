@@ -210,7 +210,8 @@ Point steiner_circumcenter(Custom_CDT& cdel_tri, Face_handle face){
 	return circumcenter;
 };
 
-int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2& region_boundary,int& best_merge){
+int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2& region_boundary,Point& neighbor_point,bool& found){
+	found=false;
 	
 	//check if the vertices of the face are constrained
 	if(is_face_constrained(ccdt,ob_face) ){
@@ -221,15 +222,15 @@ int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2
 
 	Face_handle face_copy;
 	Face_handle neighbor;
+	Point temp_point;
 	std::unordered_map<Face_handle, bool> in_domain_map_copy;
 	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
 	CGAL::mark_domain_in_triangulation(ccdt_copy, in_domain_copy);
 	int new_ob_count=21474836;
-	best_merge=-1;
 	for(int i=0;i<3;i++){
 		face_copy=find_face(ccdt_copy,ob_face);
 		neighbor=face_copy->neighbor(i);
-
+		temp_point=face_copy->vertex(i)->point();
 		//skip  constrained ,non obtuse, outside of region_boundary neighbors
 		if( ccdt_copy.is_infinite(neighbor) ){
 			continue;
@@ -312,7 +313,9 @@ int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2
 		int temp_count=count_obtuse_faces(ccdt_copy, in_domain_copy);
 		if(temp_count<new_ob_count){
 			new_ob_count=temp_count;
-			best_merge=i;
+			found=true;
+			neighbor_point=temp_point;
+
 		}
 		ccdt_copy.remove_no_flip(vh_cent);
 
@@ -334,13 +337,30 @@ int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2
 	return new_ob_count;
 }
 
-int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int& indx,int testORadd){
+int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, bool& found, Point& neighbor,int testORadd){
 	int obtuse;
 	if(testORadd!=1){
-		obtuse=simulate_merge_steiner(ccdt,face,region_polygon,indx);
+		obtuse=simulate_merge_steiner(ccdt,face,region_polygon,neighbor,found);
 		return obtuse;
 	}
 	
+	if(found==false){
+		std::cout<<"shouldnt be here\n";
+		}
+
+	int indx;
+	found=false;
+	for(int i=0;i<3;i++){
+		Point test=face->vertex(i)->point();
+		if(test==neighbor){
+			indx=i;
+			found=true;
+			break;
+		}
+	}
+	if(!found){
+		std::cout<<"didnt find neighbor\n";
+	}
 	auto face_2=face->neighbor(indx);
 
 	//skip  constrained ,non obtuse, outside of region_boundary neighbors
@@ -368,7 +388,14 @@ int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_
 	Point v4 = face->vertex(indx)->point();
 
 	if( !( is_polygon_convex(v1, v2, v3,v4) ) ){
-		std::cerr<<"Tried to merge non convex polygon\n";
+		
+		Polygon_2 pol;
+		pol.push_back(v1);
+		pol.push_back(v3);
+		pol.push_back(v2);
+		pol.push_back(v4);
+		CGAL::draw(pol);
+		std::cerr<<"Tried to merge non convex polygon had index= "<<indx<<"\n";
 		exit(-1);
 	}
 	Point centroid=CGAL::centroid(v1,v2,v3,v4);

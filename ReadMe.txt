@@ -29,29 +29,19 @@ Files and Directories:
     ├── SimulatedAnnealing.cpp	<--Source code of the sumulated annealing.
     └── AntCollony		<--Source code of the ant collony method.
 How to compile and run:
-	Inside the make directory there is the CMakeLists.txt and another directory called lib. If you go in the
+	Inside the make directory there is the CMakeLists.txt and another directory called Lib. If you go in the
 	lib directory and call cmake .. the makefile will be created in the same directory along with some other
 	files. After that you need to call make and the executable opt_triangulation will be created in the 
 	build directory.
 	To run the program you call "./opt_triangulation -i /path/to/input.json -o /path/to/output.json" and you
 	can use the flag -preselected_params in order for it to automaticaly choose the method and parameters.
 
-How reduce_random_local works:
-	  The reduce_random_local is a mix of local search with simulated annealing. It starts by creating a
-	 copy of the cdt and adds a steiner point on 1/4 of its obtuse faces followed by flips. The point is 
-	 added at the projection of a random point arround the centroid of the face on its longest edge.
-	  The first iteration of it used random points around the centroid but that was too volatile since
-	 a single point inside a face creates at least 2 new obtuse faces. So after testing i decided to
-	 project a single point on the longest edge. This way after the flips we usually have about the 
-	 same number of obtuse faces but they are new and some of the other methods may work now.
-	  After the new random steiners and flips we call a local search to try and reduce the obtuse faces.
-	 Then if the obtuse faces of the copy cdt are less than the original we make them the same. This will
-	 loop for a number of times until either we reached 0 obtuse faces or a certain number of loops.
 How LocalSearch works:
 	Local search goes through all the obtuse faces of triangulation and for each test each of the 5
 	methods to see how many obtuse faces would be after adding a steiner. All methods use methods of
 	the parent class constrained_triangulation in order not to trigger any unwanted flips durring the
-	editing of the cdt.
+	editing of the cdt. Each method has the option to be used to a copy of the cdt so we can test it
+	and the actual cdt. Also they return the number of obtuse triangles after the steiner is applied.
 	The 5 methods are:
 		-steiner on the midpoint of the longest edge
 		-steiner on the projection of the obtuse angle
@@ -64,13 +54,21 @@ How LocalSearch works:
 			constrain. For all the adding and removing constrains we use the methods of the parent
 			class constrained_triangulation in order no to triger any unwanted delaunay flips.
 		-steiner on the centroid of merged obtuse neighbors:
-			For this steiner to be added we the face to have an obtuse neighbor, both of them to be
-			non constrained and the merged polygon to convex. If those conditions are met we start
-			by finding the centroid of the polygon. Then we remove all the vertices. Then we add 
-			the steiner point on the centroid.We then add back all the vertices and make the edges
-			we want to force a constrains. After that we remove the constrains and count the obtuse
-			faces. We do that check for each neighbor of the face and return the one we got the best
-			result from along with its index.
+			For this steiner we got 2 function one called simulate_merge and another that adds the
+			steiner. 
+			The simulate checks with each neighbor and if we can merge them in a copy of the cdt.
+			If the merge is allowed it: 
+				1. removes the all the edges of the faces we will merge by removing their points.
+				2. adds the steiner on the centroid of the polygon the merged faces would make.
+				3. adds back all the removed edges and makes the polygon a constrain.
+				4. removes the constrains.
+				5. counts the obtuse faces after the merge and if that number is the best up
+				to here it saves a point to indicate the neighbor that was used for the merge.
+				6. resets the triangulation back to its previous state and check the other 
+				neighbors.
+			That function is called by the actual merge function which if a viable neighbor is returned
+			to it, it performs the merge with it.
+			
 
 	After checking all the methods we choose the one which had the best result. In case of ties the order
 	goes centroid,projection longest edge, circumcenter merge. Then we check if the obtuse count we got
@@ -123,6 +121,18 @@ How Ant colony works:
 	 The functions for the steiner points used are almost identical to the ones used in simulated annealing.
 	The other functions are the heuristics for each method and the increase/decrease pheromones which were 
 	taken from the class notes.
+How reduce_random_local works:
+	  The reduce_random_local is a mix of local search with simulated annealing. It starts by creating a
+	 copy of the cdt and adds a steiner point on 1/4 of its obtuse faces followed by flips. The point is 
+	 added at the projection of a random point arround the centroid of the face on its longest edge.
+	  The first iteration of it used random points around the centroid but that was too volatile since
+	 a single point inside a face creates at least 2 new obtuse faces. So after testing i decided to
+	 project a single point on the longest edge. This way after the flips we usually have about the 
+	 same number of obtuse faces but they are new and some of the other methods may work now.
+	  After the new random steiners and flips we call a local search to try and reduce the obtuse faces.
+	 Then if the obtuse faces of the copy cdt are less than the original we make them the same. This will
+	 loop for a number of times until either we reached 0 obtuse faces or a certain number of loops.
+
 Testing results:
 	-Local search in most cases performed a bit worst than my previous project since it didnt allow edge
 	 flips and rarely removed all the obtuse triangles.
@@ -134,5 +144,4 @@ Testing results:
 	 least was midpoint of longest edge which i think is expected since it is a more simplist version of
 	 the projection. Also the lower the b the more time it would take since it allowed more steiner points
 	 and the faces would increase making it more complex.
-
 

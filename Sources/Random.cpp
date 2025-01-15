@@ -238,8 +238,9 @@ int reduce_random_local(Custom_CDT& cdt,int starting_obt_count,Polygon_2 region_
     std::unordered_map<Face_handle, bool> in_domain_map;
     boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
     CGAL::mark_domain_in_triangulation(c_cdt, in_domain);
+    
 
-    for(int i=0;i<100;i++){
+    for(int i=0;i<10;i++){
 	//Add random steiners to 1/4 of the obtuse faces to move around the obtuse angles
 	std::vector<Face_handle> obtuse_faces;
 	for(Face_handle f : c_cdt.finite_face_handles()) {

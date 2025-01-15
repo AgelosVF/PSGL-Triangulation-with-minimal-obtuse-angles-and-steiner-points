@@ -27,6 +27,6 @@ Point steiner_circumcenter(Custom_CDT& cdel_tri, Face_handle face);
 //if testORadd !=1 calls test_merge_steiner else it performs the merge.
 int test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle& face, const Polygon_2 & region_boundary, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,int testORadd);
 
-int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2& region_boundary,int& best_merge);
-int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int& indx,int testORadd);
+int simulate_merge_steiner(Custom_CDT& ccdt,Face_handle& ob_face,const Polygon_2& region_boundary,Point& neighbor_point,bool& found);
+int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, bool& found,Point& neighbor,int testORadd);
 #endif // TRIANGULATION_UTILS_HPP

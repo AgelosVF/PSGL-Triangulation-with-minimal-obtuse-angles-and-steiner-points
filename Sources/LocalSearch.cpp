@@ -53,7 +53,8 @@ int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int L, boost::assoc
 	int e=0;
 	int best_i=-1;
 	int best_steiner=-1;
-	int merge_flag=-1;
+	bool merge_flag=false;
+	Point merge_neighbor;
 	int total_added=0;
 	int obt_count=og_obtuse_count;
 	int prev_count=obt_count;
@@ -66,7 +67,8 @@ int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int L, boost::assoc
 				steiner_ctr_count=test_add_steiner_centroid(ccdt, f, region_polygon,in_domain, 0);
 				steiner_le_count=test_add_steiner_longest_edge(ccdt, f, region_polygon, in_domain, 0);
 				steiner_proj_count=test_add_steiner_projection(ccdt, f, region_polygon, in_domain, 0);
-				steiner_merge_count=test_add_steiner_merge(ccdt,f,region_polygon,in_domain,merge_flag,0);
+				merge_flag=false;
+				steiner_merge_count=test_add_steiner_merge(ccdt,f,region_polygon,in_domain,merge_flag,merge_neighbor,0);
 				steiner_circ_count=test_add_steiner_circumcenter(ccdt, f, region_polygon, in_domain, 0);
 
 				//choose the best centroid, merge , longest edge , projection , circumcenter in case of ties the first in the previous order will be chosen.
@@ -87,7 +89,7 @@ int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int L, boost::assoc
 				}
 				if( best_i==2){
 					if(steiner_merge_count<obt_count){
-						e=test_add_steiner_merge(ccdt, f, region_polygon, in_domain,merge_flag, 1);
+						e=steiner_merge_count=test_add_steiner_merge(ccdt,f,region_polygon,in_domain,merge_flag,merge_neighbor,1);
 						steiner_added=true;
 						if(e==214748364){
 							std::cerr<<"Tried to add point on invalid merge of triangles in 5 L="<<L<<std::endl;

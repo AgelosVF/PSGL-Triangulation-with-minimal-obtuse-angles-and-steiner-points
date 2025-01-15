@@ -10,6 +10,7 @@
 #include <iostream>
 #include <ostream>
 #include <random>
+#include <strings.h>
 #include <thread>
 
 
@@ -103,11 +104,6 @@ double calculate_r(const Face_handle& Face){
 
 	int l_side_i=find_obtuse_vertex_index(Face);
 	Point obtuse_vert=Face->vertex(l_side_i)->point();
-	//-----------------------------------
-	
-	
-	
-	//-----------------------------------
 	Kernel::Line_2 longest_edge(Face->vertex((l_side_i+1)%3)->point(),Face->vertex((l_side_i+2)%3)->point());
 	Point projection=longest_edge.projection(obtuse_vert);
 	double hfle=compute_distance(projection, obtuse_vert);
@@ -328,12 +324,26 @@ Face_handle ant_circumcenter(Custom_CDT& cdt, Face_handle& face, const Polygon_2
 
 Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon){
 	int test_obtuse_count;
-	int index=-1;
-	simulate_merge_steiner(cdt, face, region_polygon, index);
-	if(index==-1){
+	bool found=false;
+	Point neighbor_point;
+	simulate_merge_steiner(cdt, face, region_polygon,neighbor_point,found );
+	if(found==false){
 		Point centroid=steiner_centroid(cdt,face);
 		cdt.insert_no_flip(centroid,face);
 		return face;
+	}
+	int index=-1;
+	for(int i=0;i<3;i++){
+		Point test=face->vertex(i)->point();
+		if(test==neighbor_point){
+			index=i;
+			found=true;
+			break;
+		}
+	}
+	if(index==-1){
+		std::cout<<"Ant merge didnt find index\n";
+		exit(-1);
 	}
 	auto neighbor=face->neighbor(index);
 	//skip  constrained ,non obtuse, outside of region_boundary neighbors

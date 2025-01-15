@@ -72,9 +72,9 @@ int annealing_test_add_steiner_centroid(Custom_CDT& ccdt,Face_handle face, const
 	return test_obutse_count;
 }
 
-int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,int& best_merge){
+int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const Polygon_2& region_boundary,Point& neighbor_point, bool& found){
 	
-	best_merge=-1;
+	found=false;
 	//check if the vertices of the face are constrained
 	if(is_face_constrained(ccdt,ob_face) ){
 		int test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, ob_face, region_boundary, 0);
@@ -85,12 +85,13 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 
 	Face_handle face_copy;
 	Face_handle neighbor;
+	Point temp_point;
 	int ob_count=annealing_test_add_steiner_centroid(ccdt, ob_face, region_boundary, 0);
 
 	for(int i=0;i<3;i++){
 		face_copy=find_face(ccdt_copy,ob_face);
 		neighbor=face_copy->neighbor(i);
-
+	temp_point=face_copy->vertex(i)->point();
 		//skip  constrained ,non obtuse, outside of region_boundary neighbors
 		if( ccdt_copy.is_infinite(neighbor) ){
 			continue;
@@ -172,7 +173,8 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 		int temp_count=count_obtuse_faces(ccdt_copy, region_boundary);
 		if(temp_count<ob_count){
 			ob_count=temp_count;
-			best_merge=i;
+			found=true;
+			neighbor_point=temp_point;
 		}
 		ccdt_copy.remove_no_flip(vh_cent);
 
@@ -190,21 +192,36 @@ int annealing_simulate_merge_steiner(Custom_CDT& ccdt,Face_handle ob_face,const 
 	}
 	return ob_count;
 }
-int annealing_test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_polygon, int& indx,int testORadd){
+int annealing_test_add_steiner_merge(Custom_CDT& ccdt,Face_handle face,Polygon_2& region_polygon, bool&found, Point& neighbor_point,int testORadd){
 	int test_obtuse_count;
 	if(testORadd!=1){
-		test_obtuse_count=annealing_simulate_merge_steiner(ccdt,face,region_polygon,indx);
+		found=false;
+		test_obtuse_count=annealing_simulate_merge_steiner(ccdt,face,region_polygon,neighbor_point,found);
 		return test_obtuse_count;
 	}
 	
-	auto face_2=face->neighbor(indx);
 
 	//skip  constrained ,non obtuse, outside of region_boundary neighbors
-	if(indx==-1){
+	if(found==false){
 		test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_polygon, 1);
 		return test_obtuse_count;
 
 	}
+
+	int indx;
+	found=false;
+	for(int i=0;i<3;i++){
+		Point test=face->vertex(i)->point();
+		if(test==neighbor_point){
+			indx=i;
+			found=true;
+			break;
+		}
+	}
+	if(!found){
+		std::cout<<"didnt find neighbor\n";
+	}
+	auto face_2=face->neighbor(indx);
 	if( ccdt.is_infinite(face_2) ){
 		test_obtuse_count=annealing_test_add_steiner_centroid(ccdt, face, region_polygon, 1);
 		return test_obtuse_count;
@@ -536,9 +553,10 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 	//create random number between 0 and 4
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> func_selector(0, 3); 
+	std::uniform_int_distribution<> func_selector(0, 4); 
 	int choise= func_selector(gen);
-	int merge_index;
+	bool merge_index=false;
+	Point merge_point;
 
 	int centroid_added=0,circ_added=0,projection_added=0,midpoint_added=0,merged=0;
 	Custom_CDT current_cdt(ccdt);
@@ -566,7 +584,7 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 						test_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 0);
 						break;
 					case 4:
-						test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,0);
+						test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,merge_point,0);
 						break;
 					
 					default:
@@ -598,7 +616,7 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 							circ_added++;
 							break;
 						case 4:
-							test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,1);
+						test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,merge_point,1);
 							merged++;
 							break;
 						
@@ -634,7 +652,7 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 	//CGAL::draw(ccdt);
 	std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
 		<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
-		<<"\n\tMerged faces:"<<merged<<std::endl;
+		<<"\n\tMerged faces:"<<merged<<"\n\tLongest edge: "<<midpoint_added<<std::endl;
 
 	return best_steiner;
 }
