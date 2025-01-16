@@ -88,7 +88,7 @@ void generate_output_json(
 );
 //-----------------------------------------------------------------------------------------------------------//
 int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int loops, boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain,double& c_rate);
-int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate);
+int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate,int methods);
 int ant_colony(Custom_CDT& cdt,Polygon_2 boundary,double alpha ,double beta, double xi, double ps, double lambda, int kappa, int L, int steiner_points, double& c_rate);
 //In Previous_Project
 int previous_triangulation(Custom_CDT& cdel_tri,const Polygon_2& region_polygon);

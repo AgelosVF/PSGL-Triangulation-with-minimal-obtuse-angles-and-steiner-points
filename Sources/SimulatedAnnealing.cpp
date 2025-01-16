@@ -533,7 +533,7 @@ int annealing_test_add_steiner_circumcenter(Custom_CDT& ccdt,Face_handle face, c
 
 
 
-int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate){
+int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associative_property_map<std::unordered_map<Face_handle, bool>> &in_domain, int steiner_count, double a, double b, int L,double& c_rate,int methods){
 	int current_steiner=steiner_count;
 	int current_obtuse=count_obtuse_faces(ccdt,in_domain);
 	int prev_obtuse=current_obtuse;
@@ -553,7 +553,7 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 	//create random number between 0 and 4
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	std::uniform_int_distribution<> func_selector(0, 4); 
+	std::uniform_int_distribution<> func_selector(0,methods); 
 	int choise= func_selector(gen);
 	bool merge_index=false;
 	Point merge_point;
@@ -574,19 +574,19 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 						test_obtuse=annealing_test_add_steiner_projection(current_cdt, face,region_polygon, 0);
 						break;
 					case 1:
-						test_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 0);
+						test_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 0);
 						break;
 
 					case 2:
-						test_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 0);
+						test_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 0);
 						break;
 					case 3:
-						test_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 0);
-						break;
-					case 4:
 						test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,merge_point,0);
 						break;
+					case 4:
 					
+						test_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 0);
+						break;
 					default:
 						std::cerr<<"Error anealing 1 switch invalid random choise\n";
 						exit(-1);
@@ -604,20 +604,20 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 							projection_added++;
 							break;
 						case 1:
-							current_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 1);
-							midpoint_added++;
-							break;
-						case 2:
-							current_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 1);
-							centroid_added++;
-							break;
-						case 3:
 							current_obtuse=annealing_test_add_steiner_circumcenter(current_cdt, face,region_polygon, 1);
 							circ_added++;
 							break;
-						case 4:
-						test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,merge_point,1);
+						case 2:
+							current_obtuse=annealing_test_add_steiner_longest_edge(current_cdt, face,region_polygon, 1);
+							midpoint_added++;
+							break;
+						case 3:
+							test_obtuse=annealing_test_add_steiner_merge(current_cdt,face,region_polygon,merge_index,merge_point,1);
 							merged++;
+							break;
+						case 4:
+							current_obtuse=annealing_test_add_steiner_centroid(current_cdt, face,region_polygon, 1);
+							centroid_added++;
 							break;
 						
 						default:
@@ -645,11 +645,13 @@ int simulated_annealing(Custom_CDT& ccdt, Polygon_2 region_polygon,boost::associ
 			}
 		}
 		Temperature=Temperature*(1-cooling_rate);
+		if(prev_obtuse==0){
+			//reached 0 obtuse no need to keep looking
+			break;
+		}
 	}
 
-	//CGAL::draw(current_cdt);
 	current_cdt.clear();
-	//CGAL::draw(ccdt);
 	std::cout<<"\nAfter SA we got:\n\tSteiners:"<<best_steiner<<"\n\t Obtuse count:"<<count_obtuse_faces(ccdt,region_polygon)
 		<<"\nUsed:\n\tCentroid:"<<centroid_added<<"\n\tProjections:"<<projection_added<<"\n\tCircumcenter:"<<circ_added
 		<<"\n\tMerged faces:"<<merged<<"\n\tLongest edge: "<<midpoint_added<<std::endl;

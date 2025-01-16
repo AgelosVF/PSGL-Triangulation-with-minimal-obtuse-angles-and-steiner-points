@@ -342,7 +342,6 @@ Face_handle ant_merge(Custom_CDT& cdt,Face_handle face,Polygon_2& region_polygon
 		}
 	}
 	if(index==-1){
-		std::cout<<"Ant merge didnt find index\n";
 		exit(-1);
 	}
 	auto neighbor=face->neighbor(index);

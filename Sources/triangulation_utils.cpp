@@ -59,7 +59,6 @@ double calculate_convergence_rate(int steiner_points, int prev_obtuse, int curre
 		return 0;
 	}
 	double rate = log((double)current_obtuse/prev_obtuse) / log((double)steiner_points/(steiner_points-1));
-	//std::cout<<"Steiner points: "<<steiner_points<<"\tPrev_count: "<<prev_obtuse<<"\tCurrent count: "<<current_obtuse<< "\nRate: "<<rate<<std::endl;
 	return  rate;
 }
 bool face_still_exists(Custom_CDT cdt,Face_handle face){

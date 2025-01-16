@@ -162,7 +162,6 @@ int local_search(Custom_CDT& ccdt, Polygon_2 region_polygon, int L, boost::assoc
 	std::cout<<"After local search i added:\n\t"<<"Steiners centroid:"<<added_centroid<<"\n\tSteiners projection:"<<added_projections<<"\n\tSteiners on longest edge:"<<added_longest_edge<<"\n\tSteiners added on circumcenter:"<<added_circ<<"\n\tSteiners added by merging neighbors:"<<added_merge<<std::endl;
 	CGAL::mark_domain_in_triangulation(ccdt, in_domain); // Reset and update the in_domain map
 	obt_count=count_obtuse_faces(ccdt, in_domain);
-	std::cout<<"Total number of obtuse triangles remaining:"<<obt_count<<std::endl;
 	std::cout<<"Total added steiner points:"<<total_added<<std::endl;
 	return total_added;
 }

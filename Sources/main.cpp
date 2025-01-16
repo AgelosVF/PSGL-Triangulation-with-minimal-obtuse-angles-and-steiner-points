@@ -100,7 +100,7 @@ int main(int argc, char* argv[]) {
 			double alpha, beta;
 			int L;
 			extract_sa_parameters(parameters, alpha, beta, L);
-			simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, alpha, beta, L,c_rate);
+			simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, alpha, beta, L,c_rate,4);
 		}
 		else if (method == "ant") {
 			double alpha, beta, xi, psi, lambda;
@@ -115,37 +115,69 @@ int main(int argc, char* argv[]) {
 		int type = boundary_type(region_polygon, region_boundary, additional_constrains, closed_p);
 	
 
-		steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 200,c_rate);
+		if( type==1){
+			method="SA";
+			double alpha = 3.0;
+			double beta = 0.2;
+			int L = 1000;
 
-		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
-		obtuse_count=count_obtuse_faces(ccdt,in_domain);
-		int saved=obtuse_count;
-		bool randomed=false;
-		//steiner_count+=reduce_random_local(ccdt,obtuse_count,region_polygon,randomed, c_rate);
-		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
-		obtuse_count=count_obtuse_faces(ccdt,in_domain);
-		if(randomed){
-			std::cout<<"Random did reduce the obtuse triangle count from: "<<saved<<" to "<<obtuse_count<<std::endl; 
+			parameters.put("alpha", alpha);
+			parameters.put("beta", beta);
+			parameters.put("L", L);
+
+			steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate,3);
 		}
+		else if( type==2){
+			method="SA";
+			double alpha = 3.0;
+			double beta = 0.2;
+			int L = 1000;
 
+			parameters.put("alpha", alpha);
+			parameters.put("beta", beta);
+			parameters.put("L", L);
 
+			steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate,3);
+		}
+		else if( type==3){
+			method="SA";
+			double alpha = 3.0;
+			double beta = 0.2;
+			int L = 1000;
 
+			parameters.put("alpha", alpha);
+			parameters.put("beta", beta);
+			parameters.put("L", L);
 
+			steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate,1);
+		}
+		else if( type==4){
+			method="SA";
+			double alpha = 3.0;
+			double beta = 0.2;
+			int L = 1000;
+
+			parameters.put("alpha", alpha);
+			parameters.put("beta", beta);
+			parameters.put("L", L);
+
+			steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate,1);
+		}
+		else if( type==5){
+			method="SA";
+			double alpha = 3.0;
+			double beta = 0.2;
+			int L = 1000;
+
+			// Add parameters to property tree
+			parameters.put("alpha", alpha);
+			parameters.put("beta", beta);
+			parameters.put("L", L);
+
+			steiner_count+=simulated_annealing(ccdt, region_polygon, in_domain, steiner_count, 3.0, 0.2, 1000,c_rate,0);
+		}
 		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
 		reduce_obtuse_by_flips(ccdt, in_domain);
-
-		/*
-
-		steiner_count+=local_search(ccdt, region_polygon, 1000, in_domain,c_rate);
-		steiner_count=ant_colony(ccdt, region_polygon, 3.0, 0.2, 1.5, 0.8, 0.2, 3, 600, 0,c_rate);       
-int ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, double xi, double psi, double lambda, int kappa, int L, int steiner_points,double& c_rate) {
-		steiner_count=ant_colony(ccdt, region_polygon, 4.0, 0.01, 1.0, 3.0, 0.2, 3, 1000, 0,c_rate);       
-		bool randomed=false;
-		steiner_count+=reduce_random_local(ccdt,obtuse_count,region_polygon,randomed, c_rate);
-		CGAL::mark_domain_in_triangulation(ccdt, in_domain);
-		obtuse_count = count_obtuse_faces(ccdt, in_domain);
-	
-	*/
 	}
 
 	CGAL::mark_domain_in_triangulation(ccdt, in_domain);
@@ -156,10 +188,6 @@ int ant_colony(Custom_CDT& cdt, Polygon_2 boundary, double alpha, double beta, d
 
 	std::cout<<"Convergence rate: "<<final_rate<<" Acumilated rate: "<<c_rate<<std::endl;
 	std::cout << "Final obtuse count:" << obtuse_count <<"\nUsed "<<steiner_count<<" steiner points."<< std::endl;
-	//---------------------------------------
-	//CGAL::draw(ccdt,in_domain);
-
-	//--------------------------------------
 	std::vector<Point> initial_points;
 				steiner_count+=1;
 	for (size_t i = 0; i < points_x.size(); ++i) {

@@ -78,7 +78,7 @@ void generate_output_json(const Custom_CDT& cdel_tri, const boost::optional<std:
     root.add_child("parameters", parameters);
 
     root.put("obtuse_count", obtuse_count); // Add the obtuse triangle count
-    root.put("convergence_rate", final_rate);  // Add the convergence rate
+    root.put("random", false);  // Add random
 
     boost::property_tree::ptree steiner_points_x;
     boost::property_tree::ptree steiner_points_y;

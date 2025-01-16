@@ -79,6 +79,37 @@ Point random_point_in_face_gaussian(Face_handle face) {
 
     return Point(x, y);
 }
+int random_and_flips(Custom_CDT& cdt, Face_handle face, Polygon_2 region){
+    int og_count=count_obtuse_faces(cdt,region);
+    Point random;
+    int flag=0;
+    int steiners_added=0;
+    for(int i=0;i<400;i++){
+	Custom_CDT cdt_copy(cdt);
+
+	random=random_point_in_face_gaussian(face);
+	Face_handle face_copy=find_face(cdt_copy,face);
+	Vertex_handle v_copy=cdt_copy.insert_no_flip(random,face_copy);
+	std::unordered_map<Face_handle, bool> in_domain_map_copy;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
+	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain_copy);
+	reduce_obtuse_by_flips(cdt_copy,in_domain_copy);
+	int new_count=count_obtuse_faces(cdt_copy,in_domain_copy);
+	if(new_count<=og_count){
+	    flag=1;
+	    break;
+	}
+    }
+    if(flag==1){
+	Vertex_handle v=cdt.insert_no_flip(random,face);
+	std::unordered_map<Face_handle, bool> in_domain_map;
+	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
+	CGAL::mark_domain_in_triangulation(cdt, in_domain);
+	reduce_obtuse_by_flips(cdt,in_domain);
+	steiners_added++;
+    }
+    return steiners_added;
+}
 
 bool random_point_on_edge(Custom_CDT& cdt,Face_handle face) {
     
@@ -120,115 +151,8 @@ bool random_point_on_edge(Custom_CDT& cdt,Face_handle face) {
     return false;
 }
 
-bool random_point_with_merge(Custom_CDT& cdt, Face_handle face){
-
-    Face_handle c_face=find_face(cdt,face);
-    
-    if(face_still_exists(cdt,c_face)){
-    
-	//get the vertices of the face
-	Point p0=c_face->vertex(0)->point();
-	Point p1=c_face->vertex(1)->point();
-	Point p2=c_face->vertex(2)->point();
-	
-
-	//calculate the length of the edges
-	//
-	Kernel::FT length1 = CGAL::squared_distance(p0, p1);
-	Kernel::FT length2 = CGAL::squared_distance(p1, p2);
-	Kernel::FT length3 = CGAL::squared_distance(p2, p0);
-
-	//FInd the longest edge and the oposite vertex
-	Point le_start,le_end,obtuse_point;
-	if( (length1 > length2) && (length1>length3)){
-		le_start=p0;
-		le_end=p1;
-		obtuse_point=p2;
-	}
-	else if ((length2>length1)&& (length2>length3) ) {
-		le_start=p1;
-		le_end=p2;
-		obtuse_point=p0;
-	}
-	else if ((length3>length1) &&(length3>length2) ) {
-		le_start=p2;
-		le_end=p0;
-		obtuse_point=p1;
-	
-	}
-
-	Vertex_handle obtuse_vertex=cdt.insert_no_flip(obtuse_point,c_face);
-	Face_handle neighbor=c_face->neighbor(c_face->index(obtuse_vertex));
-
-	Point nonShared=neighbor->vertex(neighbor->index(c_face))->point();
-	int nonShared_idx = neighbor->index(c_face);
-	Point shared1 = neighbor->vertex(cdt.cw(nonShared_idx))->point();
-	Point shared2 = neighbor->vertex(cdt.ccw(nonShared_idx))->point();
-	std::cout<<nonShared<<" "<<shared2<<" "<<shared1<<std::endl;
-
-	if(c_face->is_constrained(c_face->index(neighbor)))
-	    return false;
-	//after finding the neighbor we try to find a neighbor of his so we can merge 3 faces
-	length1=CGAL::squared_distance(nonShared, shared1);
-	length2=CGAL::squared_distance(nonShared, shared2);
-	Point neighbor_2,le_start_2,le_end_2;
-
-	if(length1>=length2){
-	    le_start_2=nonShared;
-	    le_end_2=shared1;
-	    neighbor_2=shared2;
-	    
-	    Vertex_handle neighbors_neighbor_vertex=cdt.insert_no_flip(neighbor_2);
-	    Face_handle neighbors_neighbor=neighbor->neighbor(neighbor->index(neighbors_neighbor_vertex));
-	    int nonShared_idx2=neighbors_neighbor->index(neighbor);
-	    Vertex_handle NonShared2=neighbor->vertex(nonShared_idx2);
-
-	    Polygon_2 merge;
-	    merge.push_back(obtuse_point);
 
 
-
-	}
-	
-
-
-	return true;
-    }
-    return false;
-}
-
-
-int random_and_flips(Custom_CDT& cdt, Face_handle face, Polygon_2 region){
-    int og_count=count_obtuse_faces(cdt,region);
-    Point random;
-    int flag=0;
-    int steiners_added=0;
-    for(int i=0;i<400;i++){
-	Custom_CDT cdt_copy(cdt);
-
-	random=random_point_in_face_gaussian(face);
-	Face_handle face_copy=find_face(cdt_copy,face);
-	Vertex_handle v_copy=cdt_copy.insert_no_flip(random,face_copy);
-	std::unordered_map<Face_handle, bool> in_domain_map_copy;
-	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain_copy(in_domain_map_copy);
-	CGAL::mark_domain_in_triangulation(cdt_copy, in_domain_copy);
-	reduce_obtuse_by_flips(cdt_copy,in_domain_copy);
-	int new_count=count_obtuse_faces(cdt_copy,in_domain_copy);
-	if(new_count<=og_count){
-	    flag=1;
-	    break;
-	}
-    }
-    if(flag==1){
-	Vertex_handle v=cdt.insert_no_flip(random,face);
-	std::unordered_map<Face_handle, bool> in_domain_map;
-	boost::associative_property_map<std::unordered_map<Face_handle, bool>> in_domain(in_domain_map);
-	CGAL::mark_domain_in_triangulation(cdt, in_domain);
-	reduce_obtuse_by_flips(cdt,in_domain);
-	steiners_added++;
-    }
-    return steiners_added;
-}
 int reduce_random_local(Custom_CDT& cdt,int starting_obt_count,Polygon_2 region_polygon,bool& randomed,double& c_rate){
 
     int c_obtuse_count=starting_obt_count;
@@ -248,6 +172,11 @@ int reduce_random_local(Custom_CDT& cdt,int starting_obt_count,Polygon_2 region_
 			obtuse_faces.push_back(f);
 		}
 	}
+	// Shuffle the vector randomly
+	static std::random_device rd;
+	static std::mt19937 gen(rd());
+	std::shuffle(obtuse_faces.begin(), obtuse_faces.end(), gen);
+
 	size_t quarter_size = (obtuse_faces.size() + 3) / 4;  // This rounds up division
 	for(size_t i = 0; i < quarter_size; i++) {
 		if(random_point_on_edge(c_cdt, obtuse_faces[i]))

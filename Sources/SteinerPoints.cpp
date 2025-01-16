@@ -344,9 +344,6 @@ int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_
 		return obtuse;
 	}
 	
-	if(found==false){
-		std::cout<<"shouldnt be here\n";
-		}
 
 	int indx;
 	found=false;
@@ -357,9 +354,6 @@ int test_add_steiner_merge(Custom_CDT& ccdt,Face_handle& face,Polygon_2& region_
 			found=true;
 			break;
 		}
-	}
-	if(!found){
-		std::cout<<"didnt find neighbor\n";
 	}
 	auto face_2=face->neighbor(indx);
 

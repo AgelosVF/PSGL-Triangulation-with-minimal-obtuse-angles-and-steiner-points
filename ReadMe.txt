@@ -2,7 +2,8 @@ Created by: ΑΓΓΕΛΟΣ ΒΕΝΕΤΗΣ ΦΑΝΟΥΡΑΚΗΣ sdi1300022
 
 Files and Directories:
 
-├── build 	<-- Inside will be built the executable Triangulation
+├── Test files 	<-- contains the results of the best outputs for each instance of the competition.
+├── build 	<-- Inside will be built the executable opt_triangulation
 ├── Header Files 	<-- Contrains the header files
 │   ├── boost_utils.hpp		<-- Functions used to read from json file	
 │   ├── CGAL_CUSTOM_CONSTRAINED_DELAUNAY_TRIANGULATION_2.h <--Custom cdt class used.Added more methods to avoid
@@ -36,6 +37,14 @@ How to compile and run:
 	To run the program you call "./opt_triangulation -i /path/to/input.json -o /path/to/output.json" and you
 	can use the flag -preselected_params in order for it to automaticaly choose the method and parameters.
 
+How boundary type works:
+	For convex no constrains we use the cgal is_convex()
+	For convex open/closed constrains we put the boundary in a graph. Then we put each additional edge
+	and check if starting from it there is a cycle containing it. If there is we got a cycle that may involve
+	the boundary but for sure involves an additional constraint edge.
+	For non convex with parallel x,y to xx' and yy' we check if all the connected points have either the same
+	x or y.
+	
 How LocalSearch works:
 	Local search goes through all the obtuse faces of triangulation and for each test each of the 5
 	methods to see how many obtuse faces would be after adding a steiner. All methods use methods of
@@ -136,6 +145,11 @@ How reduce_random_local works:
 Testing results:
 	-Local search in most cases performed a bit worst than my previous project since it didnt allow edge
 	 flips and rarely removed all the obtuse triangles.
+	-Ant collony performed about the same as the local search with some cases being better and others worse
+	 thanks to the randomness.
+	Parameters used for testing: 
+		alpha= 3.0 beta= 0.2 xi= 1.5 psi= 0.8, 0.2 kappa= 3 (if you got more threads maybe a larger number
+		might be better) lambda=0.2 L=1000       
 	-Simmulated annealing added  more steiner points but also reduced the obtuse angles more. I found that
 	 as it looped after a point it would stop making changes to the best cdt. With an L around 1000 it would
 	 most times reduce the obtuse angles to 0. The bests results (less loops needed & less steiners used) 
@@ -144,4 +158,6 @@ Testing results:
 	 least was midpoint of longest edge which i think is expected since it is a more simplist version of
 	 the projection. Also the lower the b the more time it would take since it allowed more steiner points
 	 and the faces would increase making it more complex.
+	 Parameters used for testing:
+		alpha=3.0 beta=0.2 L=1000
 
