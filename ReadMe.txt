@@ -1,8 +1,8 @@
 Created by: ΑΓΓΕΛΟΣ ΒΕΝΕΤΗΣ ΦΑΝΟΥΡΑΚΗΣ sdi1300022
+My solutions for the 7th Computational Geometry Challenge (2025)
 
 Files and Directories:
 
-├── Test files 	<-- contains the results of the best outputs for each instance of the competition.
 ├── build 	<-- Inside will be built the executable opt_triangulation
 ├── Header Files 	<-- Contrains the header files
 │   ├── boost_utils.hpp		<-- Functions used to read from json file	
